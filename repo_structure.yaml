@@ -33,3 +33,24 @@
       contents:
       - path: /bcm/goals/homeostasis.py
         type: file
+      - path: /bcm/goals/__init__.py
+        type: file
+    - path: /bcm/memory
+      type: directory
+      contents:
+    - path: /bcm/morphology
+      type: directory
+      contents:
+      - path: /bcm/morphology/pattern_formation.py
+        type: file
+      - path: /bcm/morphology/spatial_encoding.py
+        type: file
+      - path: /bcm/morphology/__init__.py
+        type: file
+    - path: /bcm/utils
+      type: directory
+      contents:
+      - path: /bcm/utils/metrics.py
+        type: file
+      - path: /bcm/utils/visualization.py
+        type: file
