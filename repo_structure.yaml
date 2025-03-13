@@ -1,0 +1,35 @@
+  - path: /bcm
+    type: directory
+    contents:
+    - path: /bcm/bridge
+      type: directory
+      contents:
+      - path: /bcm/bridge/bcm_to_acm.py
+        type: file
+      - path: /bcm/bridge/__init__.py
+        type: file
+    - path: /bcm/collective
+      type: directory
+      contents:
+      - path: /bcm/collective/cell_colony.py
+        type: file
+      - path: /bcm/collective/stigmergy.py
+        type: file
+      - path: /bcm/collective/__init__.py
+        type: file
+    - path: /bcm/core
+      type: directory
+      contents:
+      - path: /bcm/core/bioelectric_core.py
+        type: file
+      - path: /bcm/core/gap_junctions.py
+        type: file
+      - path: /bcm/core/ion_channels.py
+        type: file
+      - path: /bcm/core/__init__.py
+        type: file
+    - path: /bcm/goals
+      type: directory
+      contents:
+      - path: /bcm/goals/homeostasis.py
+        type: file
