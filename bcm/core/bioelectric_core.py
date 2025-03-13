@@ -8,9 +8,6 @@ import torch.nn as nn
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 
-from bcm.core.ion_channels import IonChannelNetwork
-from bcm.core.gap_junctions import GapJunctionNetwork
-
 @dataclass
 class BioelectricState:
     """Tracks bioelectric state of a primitive conscious entity."""
@@ -30,13 +27,16 @@ class BioelectricConsciousnessCore(nn.Module):
         
         # Core bioelectric components
         self.ion_channels = nn.ModuleDict({
-            'sodium': IonChannelNetwork(config['sodium_channel']),
-            'potassium': IonChannelNetwork(config['potassium_channel']),
-            'calcium': IonChannelNetwork(config['calcium_channel'])
+            'sodium': self._create_ion_channel(config['sodium_channel']),
+            'potassium': self._create_ion_channel(config['potassium_channel']),
+            'calcium': self._create_ion_channel(config['calcium_channel'])
         })
         
         # Gap junction network (cell-to-cell communication)
-        self.gap_junction_network = GapJunctionNetwork(config)
+        self.gap_junction_network = nn.Linear(
+            config['field_dimension'], 
+            config['field_dimension']
+        )
         
         # Morphological computing module
         self.morphology_encoder = nn.Sequential(
@@ -56,6 +56,15 @@ class BioelectricConsciousnessCore(nn.Module):
         # Initialize state
         self.reset_state()
         
+    def _create_ion_channel(self, config: Dict) -> nn.Module:
+        """Create an ion channel network module"""
+        return nn.Sequential(
+            nn.Linear(config['input_dim'], config['hidden_dim']),
+            nn.ReLU(),
+            nn.Linear(config['hidden_dim'], config['output_dim']),
+            nn.Sigmoid()  # Ion channels open/close with sigmoid activation
+        )
+    
     def reset_state(self):
         """Reset the bioelectric state to resting potential"""
         field_dim = self.config['field_dimension']
@@ -89,10 +98,7 @@ class BioelectricConsciousnessCore(nn.Module):
         
         # Update morphological state based on bioelectric pattern
         new_morphology = self.morphology_encoder(field_communication)
-        self.state.morphological_state = (
-            (1 - self.config['morphology']['adaptation_rate']) * self.state.morphological_state + 
-            self.config['morphology']['adaptation_rate'] * new_morphology
-        )
+        self.state.morphological_state = 0.9 * self.state.morphological_state + 0.1 * new_morphology
         
         # Calculate goal-directed behavior
         combined_state = torch.cat([self.state.voltage_potential, self.state.morphological_state])
