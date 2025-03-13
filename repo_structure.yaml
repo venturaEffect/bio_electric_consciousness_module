@@ -54,3 +54,63 @@
         type: file
       - path: /bcm/utils/visualization.py
         type: file
+    - path: /bcm/__init__.py
+      type: file
+  - path: /configs
+    type: directory
+    contents:
+  - path: /create_bcm_project.sh
+    type: file
+  - path: /data
+    type: directory
+    contents:
+    - path: /data/processed
+      type: directory
+      contents:
+    - path: /data/raw
+      type: directory
+      contents:
+  - path: /docs
+    type: directory
+    contents:
+  - path: /experiments
+    type: directory
+    contents:
+  - path: /flattened_repo_acm_14_3.txt
+    type: file
+  - path: /levins_study_into_acm.md
+    type: file
+  - path: /LICENSE
+    type: file
+  - path: /project_guide.md
+    type: file
+  - path: /README.md
+    type: file
+  - path: /repo_structure_acm_14_3.yaml
+    type: file
+  - path: /requirements.txt
+    type: file
+  - path: /scripts
+    type: directory
+    contents:
+  - path: /setup_bcm_project.sh
+    type: file
+  - path: /simulations
+    type: directory
+    contents:
+    - path: /simulations/environments
+      type: directory
+      contents:
+    - path: /simulations/evaluation
+      type: directory
+      contents:
+    - path: /simulations/scenarios
+      type: directory
+      contents:
+    - path: /simulations/__init__.py
+      type: file
+  - path: /tests
+    type: directory
+    contents:
+    - path: /tests/__init__.py
+      type: file

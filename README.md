@@ -52,20 +52,58 @@ This project is designed to integrate with the Artificial Consciousness Module (
 ### Project Structure
 
 bioelectric-consciousness-module/
-├── bcm/ # Core module code
+├── bcm/
 │ ├── core/ # Bioelectric processing core
-│ ├── morphology/ # Pattern formation and morphology
-│ ├── collective/ # Multi-cellular collective behavior
-│ ├── goals/ # Primitive goals and drives
-│ ├── memory/ # Bioelectric memory systems
-│ ├── bridge/ # Integration with ACM
-│ └── utils/ # Utility functions
+│ ├── **init**.py
+│ └── processing.py
+│
+│── morphology/ # Pattern formation and morphology
+│ ├── **init**.py
+│ └── morphogenesis.py
+│
+│── collective/ # Multi-cellular collective behavior
+│ ├── **init**.py
+│ └── communication.py
+│
+│── goals/ # Primitive goals and drives
+│ ├── **init**.py
+│ └── goal_states.py
+│
+│── memory/ # Bioelectric memory systems
+│ ├── **init**.py
+│ └── bio_memory.py
+│
+│── bridge/ # Integration with ACM
+│ ├── **init**.py
+│ └── acm_integration.py
+│
+│── utils/ # Utility functions
+│ ├── **init**.py
+│ └── helpers.py
+│
 ├── configs/ # Configuration files
+│ ├── bioelectric_config.yaml
+│ └── simulation_params.yaml
+│
 ├── docs/ # Documentation
-├── simulations/ # Simulation environments
+│ ├── overview.md
+│ └── setup_guide.md
+│
+│── simulations/ # Simulation environments
+│ ├── env_setup.py
+│ └── simulation.py
+│
 ├── experiments/ # Experiment scripts
+│ ├── exp_setup.py
+│ └── run_experiment.py
+│
 ├── scripts/ # Utility scripts
+│ ├── run_simulation.py
+│ └── data_analysis.py
+│
 └── tests/ # Test cases
+├── test_core.py
+└── test_morphology.py
 
 ### License
 
