@@ -1,0 +1,42 @@
+# Bioelectric Consciousness Module Configuration
+
+# Core parameters
+core:
+  input_dim: 64
+  hidden_dim: 128
+  output_dim: 64
+  num_layers: 3
+  activation: "relu"
+  dropout: 0.1
+
+# Morphology parameters
+morphology:
+  pattern_complexity: 0.7
+  spatial_resolution: 32
+  diffusion_rate: 0.05
+  reaction_rate: 0.1
+
+# Collective behavior parameters
+collective:
+  colony_size: 100
+  connection_density: 0.3
+  communication_strength: 0.5
+  gap_junction_conductance: 0.2
+
+# Goal-directed behavior parameters
+goals:
+  homeostasis_strength: 0.8
+  adaptation_rate: 0.01
+  goal_persistence: 0.7
+
+# Memory parameters
+memory:
+  memory_size: 64
+  retention_rate: 0.95
+  retrieval_threshold: 0.3
+
+# Bridge to ACM parameters
+bridge:
+  translation_fidelity: 0.9
+  mapping_complexity: 0.6
+  integration_strength: 0.7

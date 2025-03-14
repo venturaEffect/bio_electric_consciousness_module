@@ -1,0 +1,35 @@
+# Simulation Configuration Parameters
+
+# Environment parameters
+environment:
+  size: [100, 100]
+  boundary_condition: "periodic"
+  noise_level: 0.05
+  external_stimuli_strength: 0.2
+
+# Simulation control
+simulation:
+  time_steps: 1000
+  dt: 0.1
+  save_interval: 10
+  random_seed: 42
+
+# Visualization settings
+visualization:
+  colormap: "viridis"
+  plot_interval: 20
+  save_plots: true
+  animation_fps: 30
+
+# Evaluation metrics
+evaluation:
+  measure_stability: true
+  measure_entropy: true
+  measure_goal_alignment: true
+  measure_collective_coherence: true
+
+# Experiment-specific settings
+experiment:
+  perturbation_time: 500
+  perturbation_strength: 0.4
+  recovery_measure_interval: 10
