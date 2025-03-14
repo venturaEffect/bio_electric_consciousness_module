@@ -71,8 +71,6 @@
       type: file
     - path: /configs/simulation_params.yaml
       type: file
-  - path: /create_bcm_project.sh
-    type: file
   - path: /data
     type: directory
     contents:
@@ -109,8 +107,6 @@
       type: file
     - path: /scripts/run_simulation.py
       type: file
-  - path: /setup_bcm_project.sh
-    type: file
   - path: /simulations
     type: directory
     contents:
