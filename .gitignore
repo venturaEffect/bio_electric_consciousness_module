@@ -43,3 +43,63 @@ data/simulations/*
 # Cache
 .cache/
 .pytest_cache/
+
+# Virtual Environment
+venv/
+env/
+bcm_env/
+bcm_env_new/
+.env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+*env*/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# wandb
+wandb/
+
+# Output and data files
+output/
+*.log
+*.csv
+*.dat
+*.out
+*.pid
+*.seed
+*.npy
+*.npz
+*.pkl
+*.h5
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
