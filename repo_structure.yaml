@@ -31,6 +31,8 @@
     - path: /bcm/goals
       type: directory
       contents:
+      - path: /bcm/goals/goal_states.py
+        type: file
       - path: /bcm/goals/homeostasis.py
         type: file
       - path: /bcm/goals/__init__.py
@@ -38,6 +40,10 @@
     - path: /bcm/memory
       type: directory
       contents:
+      - path: /bcm/memory/bio_memory.py
+        type: file
+      - path: /bcm/memory/__init__.py
+        type: file
     - path: /bcm/morphology
       type: directory
       contents:
@@ -54,11 +60,17 @@
         type: file
       - path: /bcm/utils/visualization.py
         type: file
+      - path: /bcm/utils/__init__.py
+        type: file
     - path: /bcm/__init__.py
       type: file
   - path: /configs
     type: directory
     contents:
+    - path: /configs/bioelectric_config.yaml
+      type: file
+    - path: /configs/simulation_params.yaml
+      type: file
   - path: /create_bcm_project.sh
     type: file
   - path: /data
@@ -93,6 +105,10 @@
   - path: /scripts
     type: directory
     contents:
+    - path: /scripts/data_analysis.py
+      type: file
+    - path: /scripts/run_simulation.py
+      type: file
   - path: /setup_bcm_project.sh
     type: file
   - path: /simulations
@@ -101,12 +117,16 @@
     - path: /simulations/environments
       type: directory
       contents:
+      - path: /simulations/environments/env_setup.py
+        type: file
     - path: /simulations/evaluation
       type: directory
       contents:
     - path: /simulations/scenarios
       type: directory
       contents:
+    - path: /simulations/simulation.py
+      type: file
     - path: /simulations/__init__.py
       type: file
   - path: /tests

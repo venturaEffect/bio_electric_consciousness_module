@@ -783,6 +783,51 @@ from bcm.core.bioelectric_core import BioelectricState, BioelectricConsciousness
 __all__ = ['BioelectricState', 'BioelectricConsciousnessCore']
 </bcm/core/__init__.py>
 
+<bcm/goals/goal_states.py>
+"""
+Implementation of primitive goal-directed behavior in bioelectric systems.
+This module defines goal states that bioelectric systems strive to achieve
+through self-regulation and adaptive behavior.
+"""
+import torch
+import torch.nn as nn
+from typing import Dict, List, Tuple, Optional, Any
+
+from bcm.core.bioelectric_core import BioelectricState
+
+class GoalState(nn.Module):
+    """
+    Represents a target bioelectric pattern that the system aims to achieve
+    through self-regulation mechanisms.
+    """
+    def __init__(self, target_shape: Tuple[int, ...], stability_threshold: float = 0.1):
+        super().__init__()
+        self.target_shape = target_shape
+        self.stability_threshold = stability_threshold
+        self.target_pattern = nn.Parameter(torch.randn(target_shape))
+        
+    def compute_deviation(self, current_state: BioelectricState) -> torch.Tensor:
+        """
+        Computes deviation between current state and goal state
+        """
+        # Implementation details
+        pass
+        
+    def is_satisfied(self, current_state: BioelectricState) -> bool:
+        """
+        Determines if current state satisfies the goal state
+        """
+        # Implementation details
+        pass
+        
+    def forward(self, current_state: BioelectricState) -> Dict[str, torch.Tensor]:
+        """
+        Computes goal-related metrics for the current state
+        """
+        # Implementation details
+        pass
+</bcm/goals/goal_states.py>
+
 <bcm/goals/homeostasis.py>
 """
 Implementation of homeostatic mechanisms for bioelectric systems.
@@ -947,7 +992,60 @@ class HomeostasisRegulator(nn.Module):
 """
 Components for primitive goal-directed behavior in bioelectric systems.
 """
+from bcm.goals.homeostasis import HomeostasisRegulator
+from bcm.goals.goal_states import GoalState
+
+__all__ = ['HomeostasisRegulator', 'GoalState']
 </bcm/goals/__init__.py>
+
+<bcm/memory/bio_memory.py>
+"""
+Implementation of bioelectric memory systems.
+This module provides mechanisms for voltage-mediated pattern storage
+and information persistence in cellular networks.
+"""
+import torch
+import torch.nn as nn
+from typing import Dict, List, Optional, Tuple, Any
+
+from bcm.core.bioelectric_core import BioelectricState
+
+class BioelectricMemory(nn.Module):
+    """
+    A memory system for bioelectric networks that can store and retrieve
+    patterns based on voltage-mediated mechanisms.
+    """
+    def __init__(self, memory_size: int, state_dim: int):
+        super().__init__()
+        self.memory_size = memory_size
+        self.state_dim = state_dim
+        self.memory_bank = nn.Parameter(torch.zeros(memory_size, state_dim))
+        self.memory_gate = nn.Linear(state_dim, memory_size)
+        
+    def store(self, state: BioelectricState) -> None:
+        """Store a bioelectric state in memory"""
+        # Implementation details
+        pass
+        
+    def retrieve(self, query: torch.Tensor) -> BioelectricState:
+        """Retrieve a bioelectric state from memory"""
+        # Implementation details
+        pass
+        
+    def forward(self, state: BioelectricState) -> BioelectricState:
+        """Process state through memory system"""
+        # Implementation details
+        pass
+</bcm/memory/bio_memory.py>
+
+<bcm/memory/__init__.py>
+"""
+Components for bioelectric memory systems.
+"""
+from bcm.memory.bio_memory import BioelectricMemory
+
+__all__ = ['BioelectricMemory']
+</bcm/memory/__init__.py>
 
 <bcm/morphology/pattern_formation.py>
 """
@@ -1782,6 +1880,39 @@ def create_state_heatmap(state_matrix: np.ndarray,
     return fig
 </bcm/utils/visualization.py>
 
+<bcm/utils/__init__.py>
+"""
+Utility functions for the Bioelectric Consciousness Module.
+"""
+from bcm.utils.metrics import (
+    calculate_pattern_stability,
+    calculate_bioelectric_entropy,
+    calculate_spatial_coherence,
+    calculate_goal_alignment,
+    summarize_bioelectric_state
+)
+from bcm.utils.visualization import (
+    plot_voltage_potential,
+    visualize_ion_gradients,
+    plot_cell_colony,
+    plot_pattern_formation,
+    create_bioelectric_animation
+)
+
+__all__ = [
+    'calculate_pattern_stability',
+    'calculate_bioelectric_entropy',
+    'calculate_spatial_coherence',
+    'calculate_goal_alignment',
+    'summarize_bioelectric_state',
+    'plot_voltage_potential',
+    'visualize_ion_gradients',
+    'plot_cell_colony',
+    'plot_pattern_formation',
+    'create_bioelectric_animation'
+]
+</bcm/utils/__init__.py>
+
 <bcm/__init__.py>
 """
 Bioelectric Consciousness Module (BCM)
@@ -1792,6 +1923,91 @@ inspired by the work of Michael Levin on bioelectrical signaling in cells.
 
 __version__ = '0.1.0'
 </bcm/__init__.py>
+
+<configs/bioelectric_config.yaml>
+# Bioelectric Consciousness Module Configuration
+
+# Core parameters
+core:
+  input_dim: 64
+  hidden_dim: 128
+  output_dim: 64
+  num_layers: 3
+  activation: "relu"
+  dropout: 0.1
+
+# Morphology parameters
+morphology:
+  pattern_complexity: 0.7
+  spatial_resolution: 32
+  diffusion_rate: 0.05
+  reaction_rate: 0.1
+
+# Collective behavior parameters
+collective:
+  colony_size: 100
+  connection_density: 0.3
+  communication_strength: 0.5
+  gap_junction_conductance: 0.2
+
+# Goal-directed behavior parameters
+goals:
+  homeostasis_strength: 0.8
+  adaptation_rate: 0.01
+  goal_persistence: 0.7
+
+# Memory parameters
+memory:
+  memory_size: 64
+  retention_rate: 0.95
+  retrieval_threshold: 0.3
+
+# Bridge to ACM parameters
+bridge:
+  translation_fidelity: 0.9
+  mapping_complexity: 0.6
+  integration_strength: 0.7
+
+</configs/bioelectric_config.yaml>
+
+<configs/simulation_params.yaml>
+# Simulation Configuration Parameters
+
+# Environment parameters
+environment:
+  size: [100, 100]
+  boundary_condition: "periodic"
+  noise_level: 0.05
+  external_stimuli_strength: 0.2
+
+# Simulation control
+simulation:
+  time_steps: 1000
+  dt: 0.1
+  save_interval: 10
+  random_seed: 42
+
+# Visualization settings
+visualization:
+  colormap: "viridis"
+  plot_interval: 20
+  save_plots: true
+  animation_fps: 30
+
+# Evaluation metrics
+evaluation:
+  measure_stability: true
+  measure_entropy: true
+  measure_goal_alignment: true
+  measure_collective_coherence: true
+
+# Experiment-specific settings
+experiment:
+  perturbation_time: 500
+  perturbation_strength: 0.4
+  recovery_measure_interval: 10
+
+</configs/simulation_params.yaml>
 
 <create_bcm_project.sh>
 echo "Creating Bioelectric Consciousness Module project structure..."
@@ -91203,6 +91419,261 @@ networkx>=2.6.0
 wandb>=0.12.0
 </requirements.txt>
 
+<scripts/data_analysis.py>
+#!/usr/bin/env python
+"""
+Analyze data from bioelectric consciousness simulations.
+"""
+import argparse
+import yaml
+import torch
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import sys
+from pathlib import Path
+from typing import List, Dict, Optional
+
+# Add parent directory to path to import BCM
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from bcm.core.bioelectric_core import BioelectricState
+from bcm.utils.metrics import (
+    calculate_pattern_stability,
+    calculate_bioelectric_entropy,
+    calculate_spatial_coherence,
+    calculate_goal_alignment,
+    summarize_bioelectric_state
+)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Analyze bioelectric simulation data")
+    parser.add_argument("--data-dir", type=str, required=True,
+                        help="Directory containing simulation data")
+    parser.add_argument("--config", type=str, default="configs/bioelectric_config.yaml",
+                        help="Path to the bioelectric configuration file")
+    parser.add_argument("--output-dir", type=str, default="output/analysis",
+                        help="Directory to save analysis outputs")
+    return parser.parse_args()
+
+def load_simulation_data(data_dir: str) -> List[BioelectricState]:
+    """Load saved bioelectric states from the simulation directory."""
+    # Implementation would depend on how data is saved
+    # This is a placeholder
+    pass
+
+def analyze_temporal_patterns(states: List[BioelectricState], output_dir: str):
+    """Analyze how patterns evolve over time."""
+    timestamps = range(len(states))
+    
+    # Calculate metrics across time
+    stability_values = [calculate_pattern_stability(state) for state in states]
+    entropy_values = [calculate_bioelectric_entropy(state) for state in states]
+    coherence_values = [calculate_spatial_coherence(state) for state in states]
+    
+    # Create dataframe for analysis
+    df = pd.DataFrame({
+        'Timestep': timestamps,
+        'Stability': stability_values,
+        'Entropy': entropy_values,
+        'Coherence': coherence_values
+    })
+    
+    # Plot metrics over time
+    plt.figure(figsize=(12, 8))
+    
+    plt.subplot(3, 1, 1)
+    sns.lineplot(data=df, x='Timestep', y='Stability')
+    plt.title('Pattern Stability Over Time')
+    
+    plt.subplot(3, 1, 2)
+    sns.lineplot(data=df, x='Timestep', y='Entropy')
+    plt.title('Bioelectric Entropy Over Time')
+    
+    plt.subplot(3, 1, 3)
+    sns.lineplot(data=df, x='Timestep', y='Coherence')
+    plt.title('Spatial Coherence Over Time')
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'temporal_analysis.png'))
+    plt.close()
+    
+    # Save metrics to CSV
+    df.to_csv(os.path.join(output_dir, 'temporal_metrics.csv'), index=False)
+    
+    return df
+
+def main():
+    args = parse_args()
+    
+    # Ensure output directory exists
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    # Load simulation states
+    states = load_simulation_data(args.data_dir)
+    
+    # Run temporal analysis
+    temporal_df = analyze_temporal_patterns(states, args.output_dir)
+    
+    # Generate summary statistics
+    final_state_summary = summarize_bioelectric_state(states[-1])
+    
+    # Save summary as JSON
+    import json
+    with open(os.path.join(args.output_dir, 'final_state_summary.json'), 'w') as f:
+        json.dump(final_state_summary, f, indent=2)
+    
+    print(f"Analysis completed. Results saved to {args.output_dir}")
+
+if __name__ == "__main__":
+    main()
+</scripts/data_analysis.py>
+
+<scripts/run_simulation.py>
+#!/usr/bin/env python
+"""
+Run a bioelectric consciousness simulation with the specified configuration.
+"""
+import argparse
+import yaml
+import torch
+import os
+import sys
+import numpy as np
+from pathlib import Path
+import matplotlib.pyplot as plt
+
+# Add parent directory to path to import BCM
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from bcm.core.bioelectric_core import BioelectricConsciousnessCore, BioelectricState
+from bcm.morphology.pattern_formation import BioelectricPatternFormation
+from bcm.collective.cell_colony import CellColony
+from bcm.goals.homeostasis import HomeostasisRegulator
+from bcm.goals.goal_states import GoalState
+from bcm.utils.visualization import (
+    plot_voltage_potential,
+    visualize_ion_gradients,
+    plot_cell_colony,
+    create_bioelectric_animation
+)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run a bioelectric consciousness simulation")
+    parser.add_argument("--config", type=str, default="configs/bioelectric_config.yaml",
+                        help="Path to the bioelectric configuration file")
+    parser.add_argument("--sim-params", type=str, default="configs/simulation_params.yaml",
+                        help="Path to the simulation parameters file")
+    parser.add_argument("--output-dir", type=str, default="output/",
+                        help="Directory to save outputs and visualizations")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu",
+                        help="Device to run simulation on (cuda/cpu)")
+    return parser.parse_args()
+
+def load_configs(args):
+    with open(args.config, 'r') as f:
+        bioelectric_config = yaml.safe_load(f)
+    with open(args.sim_params, 'r') as f:
+        sim_params = yaml.safe_load(f)
+    return bioelectric_config, sim_params
+
+def initialize_models(config, device):
+    # Initialize core BCM components
+    core = BioelectricConsciousnessCore(
+        input_dim=config['core']['input_dim'],
+        hidden_dim=config['core']['hidden_dim'],
+        output_dim=config['core']['output_dim'],
+        num_layers=config['core']['num_layers']
+    ).to(device)
+    
+    pattern_model = BioelectricPatternFormation(
+        spatial_resolution=config['morphology']['spatial_resolution'],
+        diffusion_rate=config['morphology']['diffusion_rate'],
+        reaction_rate=config['morphology']['reaction_rate']
+    ).to(device)
+    
+    colony = CellColony(
+        colony_size=config['collective']['colony_size'],
+        connection_density=config['collective']['connection_density']
+    ).to(device)
+    
+    homeostasis = HomeostasisRegulator(
+        strength=config['goals']['homeostasis_strength'],
+        adaptation_rate=config['goals']['adaptation_rate']
+    ).to(device)
+    
+    return {
+        'core': core,
+        'pattern_model': pattern_model,
+        'colony': colony,
+        'homeostasis': homeostasis
+    }
+
+def run_simulation(models, sim_params, output_dir, device):
+    # Setup simulation parameters
+    time_steps = sim_params['simulation']['time_steps']
+    dt = sim_params['simulation']['dt']
+    save_interval = sim_params['simulation']['save_interval']
+    
+    # Initialize state history for visualization
+    state_history = []
+    
+    # Initialize initial state
+    initial_state = BioelectricState()  # You'll need to properly initialize this
+    current_state = initial_state
+    
+    # Run simulation
+    for t in range(time_steps):
+        # Process through bioelectric core
+        current_state = models['core'](current_state)
+        
+        # Form patterns
+        current_state = models['pattern_model'](current_state)
+        
+        # Apply colony interactions
+        current_state = models['colony'](current_state)
+        
+        # Apply homeostasis regulation
+        current_state = models['homeostasis'](current_state)
+        
+        # Save state at intervals
+        if t % save_interval == 0:
+            state_history.append(current_state)
+            print(f"Timestep {t}/{time_steps} completed.")
+    
+    # Create visualizations
+    create_bioelectric_animation(state_history, save_path=f"{output_dir}/animation.mp4")
+    
+    # Plot final state
+    plot_voltage_potential(state_history[-1], save_path=f"{output_dir}/final_voltage.png")
+    
+    return state_history
+
+def main():
+    args = parse_args()
+    bioelectric_config, sim_params = load_configs(args)
+    
+    # Ensure output directory exists
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    # Set random seed for reproducibility
+    torch.manual_seed(sim_params['simulation']['random_seed'])
+    np.random.seed(sim_params['simulation']['random_seed'])
+    
+    # Initialize models
+    models = initialize_models(bioelectric_config, args.device)
+    
+    # Run simulation
+    state_history = run_simulation(models, sim_params, args.output_dir, args.device)
+    
+    print(f"Simulation completed. Results saved to {args.output_dir}")
+
+if __name__ == "__main__":
+    main()
+</scripts/run_simulation.py>
+
 <setup_bcm_project.sh>
 #!/bin/bash
 # Script to create the bioelectric-consciousness-module project structure
@@ -91885,6 +92356,270 @@ def save_state_visualization(
     bioelectric_state: BioelectricState, 
     metrics: Dict, 
 </setup_bcm_project.sh>
+
+<simulations/environments/env_setup.py>
+"""
+Environment setup for bioelectric consciousness simulations.
+"""
+import torch
+import numpy as np
+from typing import Dict, Tuple, List, Optional, Any
+
+class BioelectricEnvironment:
+    """
+    Defines the environment in which bioelectric systems operate.
+    Controls external conditions like nutrient availability, 
+    signal gradients, and environmental perturbations.
+    """
+    def __init__(self, 
+                 size: Tuple[int, int],
+                 boundary_condition: str = "periodic",
+                 noise_level: float = 0.05):
+        """
+        Initialize the bioelectric environment.
+        
+        Args:
+            size: Spatial dimensions of the environment (height, width)
+            boundary_condition: Type of boundary condition ("periodic", "fixed", "reflective")
+            noise_level: Amount of random noise in the environment
+        """
+        self.size = size
+        self.boundary_condition = boundary_condition
+        self.noise_level = noise_level
+        self.initialize_environment()
+    
+    def initialize_environment(self):
+        """Initialize environment variables."""
+        # Base chemical gradients
+        self.ion_gradients = {
+            'sodium': self._create_gradient((0, 0), self.size, 1.0, 0.2),
+            'potassium': self._create_gradient((self.size[0], self.size[1]), self.size, 0.8, 0.3),
+            'calcium': self._create_gradient((self.size[0]//2, self.size[1]//2), self.size, 1.2, 0.5),
+        }
+        
+    def _create_gradient(self, 
+                         center: Tuple[int, int], 
+                         size: Tuple[int, int], 
+                         amplitude: float, 
+                         decay: float) -> np.ndarray:
+        """Create a radial gradient in the environment."""
+        y, x = np.ogrid[:size[0], :size[1]]
+        dist = np.sqrt((x - center[1])**2 + (y - center[0])**2)
+        gradient = amplitude * np.exp(-decay * dist)
+        return gradient
+    
+    def apply_perturbation(self, 
+                          location: Tuple[int, int], 
+                          radius: int, 
+                          strength: float) -> None:
+        """
+        Apply a localized perturbation to the environment.
+        
+        Args:
+            location: Center point of perturbation (y, x)
+            radius: Radius of the affected area
+            strength: Strength of the perturbation
+        """
+        y, x = np.ogrid[:self.size[0], :self.size[1]]
+        dist = np.sqrt((x - location[1])**2 + (y - location[0])**2)
+        mask = dist <= radius
+        
+        # Perturb all ion gradients
+        for ion in self.ion_gradients:
+            self.ion_gradients[ion][mask] += strength
+    
+    def get_state(self) -> Dict[str, np.ndarray]:
+        """
+        Get the current state of the environment.
+        
+        Returns:
+            Dict containing ion gradients and other environment variables
+        """
+        state = {
+            'ion_gradients': self.ion_gradients,
+            'noise': self.noise_level * np.random.randn(*self.size)
+        }
+        return state
+    
+    def update(self) -> None:
+        """Update the environment for the next time step."""
+        # Apply diffusion to ion gradients
+        for ion in self.ion_gradients:
+            # Add small random fluctuations
+            self.ion_gradients[ion] += self.noise_level * np.random.randn(*self.size)
+            
+            # Handle boundary conditions
+            if self.boundary_condition == "fixed":
+                # Zero at boundaries
+                self.ion_gradients[ion][0, :] = 0
+                self.ion_gradients[ion][-1, :] = 0
+                self.ion_gradients[ion][:, 0] = 0
+                self.ion_gradients[ion][:, -1] = 0
+</simulations/environments/env_setup.py>
+
+<simulations/simulation.py>
+"""
+Main simulation module for bioelectric consciousness.
+"""
+import torch
+import numpy as np
+from typing import Dict, List, Optional, Tuple, Any
+import time
+
+from bcm.core.bioelectric_core import BioelectricConsciousnessCore, BioelectricState
+from bcm.morphology.pattern_formation import BioelectricPatternFormation
+from bcm.collective.cell_colony import CellColony
+from bcm.goals.homeostasis import HomeostasisRegulator
+from bcm.utils.metrics import calculate_pattern_stability
+from simulations.environments.env_setup import BioelectricEnvironment
+
+class BioelectricSimulation:
+    """
+    Main simulation class for bioelectric consciousness experiments.
+    Integrates all components and runs the simulation loop.
+    """
+    
+    def __init__(self, 
+                 config: Dict[str, Any],
+                 sim_params: Dict[str, Any],
+                 device: str = "cpu"):
+        """
+        Initialize the simulation with configuration parameters.
+        
+        Args:
+            config: Configuration dictionary for BCM components
+            sim_params: Simulation parameters
+            device: Device to run the simulation on ('cpu' or 'cuda')
+        """
+        self.config = config
+        self.sim_params = sim_params
+        self.device = device
+        self.state_history = []
+        
+        # Initialize components
+        self.initialize_components()
+        
+    def initialize_components(self):
+        """Initialize all components required for the simulation."""
+        # Environment
+        env_size = self.sim_params['environment']['size']
+        self.environment = BioelectricEnvironment(
+            size=tuple(env_size),
+            boundary_condition=self.sim_params['environment']['boundary_condition'],
+            noise_level=self.sim_params['environment']['noise_level']
+        )
+        
+        # Core BCM components
+        self.bcm_core = BioelectricConsciousnessCore(
+            input_dim=self.config['core']['input_dim'],
+            hidden_dim=self.config['core']['hidden_dim'],
+            output_dim=self.config['core']['output_dim'],
+            num_layers=self.config['core']['num_layers']
+        ).to(self.device)
+        
+        # Pattern formation
+        self.pattern_model = BioelectricPatternFormation(
+            spatial_resolution=self.config['morphology']['spatial_resolution'],
+            diffusion_rate=self.config['morphology']['diffusion_rate'],
+            reaction_rate=self.config['morphology']['reaction_rate']
+        ).to(self.device)
+        
+        # Cell colony
+        self.colony = CellColony(
+            colony_size=self.config['collective']['colony_size'],
+            connection_density=self.config['collective']['connection_density']
+        ).to(self.device)
+        
+        # Homeostasis regulator
+        self.homeostasis = HomeostasisRegulator(
+            strength=self.config['goals']['homeostasis_strength'],
+            adaptation_rate=self.config['goals']['adaptation_rate']
+        ).to(self.device)
+    
+    def initialize_state(self) -> BioelectricState:
+        """
+        Initialize the simulation state.
+        
+        Returns:
+            Initial bioelectric state
+        """
+        # Initialize with environment information
+        env_state = self.environment.get_state()
+        
+        # Convert numpy arrays to torch tensors
+        torch_state = {
+            key: torch.tensor(value, dtype=torch.float32, device=self.device)
+            for key, value in env_state.items() 
+            if isinstance(value, np.ndarray)
+        }
+        
+        # Handle nested dictionaries like ion_gradients
+        if 'ion_gradients' in env_state:
+            torch_state['ion_gradients'] = {
+                ion: torch.tensor(gradient, dtype=torch.float32, device=self.device)
+                for ion, gradient in env_state['ion_gradients'].items()
+            }
+        
+        # Create initial BioelectricState
+        initial_state = BioelectricState()  # This would need proper initialization based on your BioelectricState class
+        
+        return initial_state
+        
+    def run(self, time_steps: Optional[int] = None) -> List[BioelectricState]:
+        """
+        Run the simulation for the specified number of time steps.
+        
+        Args:
+            time_steps: Number of time steps to run (defaults to config value)
+            
+        Returns:
+            List of bioelectric states over time
+        """
+        if time_steps is None:
+            time_steps = self.sim_params['simulation']['time_steps']
+            
+        dt = self.sim_params['simulation']['dt']
+        save_interval = self.sim_params['simulation']['save_interval']
+        
+        # Initialize state
+        current_state = self.initialize_state()
+        self.state_history = [current_state]
+        
+        # Main simulation loop
+        start_time = time.time()
+        for t in range(time_steps):
+            # Update environment
+            self.environment.update()
+            
+            # Process through bioelectric core
+            current_state = self.bcm_core(current_state)
+            
+            # Form patterns
+            current_state = self.pattern_model(current_state)
+            
+            # Apply colony interactions
+            current_state = self.colony(current_state)
+            
+            # Apply homeostasis regulation
+            current_state = self.homeostasis(current_state)
+            
+            # Apply environmental influence
+            env_state = self.environment.get_state()
+            # This would depend on how your BioelectricState class handles environmental updates
+            
+            # Save state at intervals
+            if t % save_interval == 0:
+                self.state_history.append(current_state)
+                
+                # Calculate metrics for monitoring
+                stability = calculate_pattern_stability(current_state)
+                
+                # Print progress
+                elapsed = time.time() - start_time
+                print(f"Step {t}/{time_steps} | Stability: {stability:.4f} | Time: {elapsed:.2f}s")
+        
+        return self.state_history
+</simulations/simulation.py>
 
 <simulations/__init__.py>
 
