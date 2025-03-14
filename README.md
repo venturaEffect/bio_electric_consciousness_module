@@ -51,6 +51,7 @@ This project is designed to integrate with the Artificial Consciousness Module (
 
 ### Project Structure
 
+```
 bioelectric-consciousness-module/
 ├── bcm/
 │ ├── core/ # Bioelectric processing core
@@ -104,6 +105,7 @@ bioelectric-consciousness-module/
 └── tests/ # Test cases
 ├── test_core.py
 └── test_morphology.py
+```
 
 ### License
 
