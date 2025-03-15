@@ -109,8 +109,19 @@ def run_simulation(models, sim_params, output_dir, device):
     # Initialize state history for visualization
     state_history = []
     
-    # Initialize initial state
-    initial_state = BioelectricState()  # You'll need to properly initialize this
+    # Create a properly initialized BioelectricState
+    field_dim = models['core'].config['field_dimension']
+    initial_state = BioelectricState(
+        voltage_potential=torch.zeros((10, 10), device=device),
+        ion_gradients={
+            'sodium': torch.ones((10, 10), device=device) * 0.1,
+            'potassium': torch.ones((10, 10), device=device) * 0.9,
+            'calcium': torch.ones((10, 10), device=device) * 0.2
+        },
+        gap_junction_states=torch.eye(10, device=device),
+        morphological_state=torch.zeros(field_dim//2, device=device)
+    )
+    
     current_state = initial_state
     
     # Run simulation
