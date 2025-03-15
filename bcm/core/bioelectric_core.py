@@ -125,3 +125,31 @@ class BioelectricConsciousnessCore(nn.Module):
         entropy = -torch.sum(normalized_spectrum * torch.log2(normalized_spectrum + 1e-10))
         
         return entropy.item()
+
+def run_simulation(models, sim_params, output_dir, device):
+    # Setup simulation parameters
+    time_steps = sim_params['simulation']['time_steps']
+    dt = sim_params['simulation']['dt']
+    save_interval = sim_params['simulation']['save_interval']
+    
+    # Initialize state history for visualization
+    state_history = []
+    
+    # Initialize bioelectric state with appropriate dimensions
+    field_dim = models['core'].config['field_dimension']
+    morphology_dim = models['core'].config['morphology']['state_dim']
+    
+    initial_state = BioelectricState(
+        voltage_potential=torch.zeros(field_dim, device=device),
+        ion_gradients={
+            'sodium': torch.ones(field_dim, device=device) * 0.1,
+            'potassium': torch.ones(field_dim, device=device) * 0.9,
+            'calcium': torch.ones(field_dim, device=device) * 0.2
+        },
+        gap_junction_states=torch.eye(field_dim, device=device),
+        morphological_state=torch.zeros(morphology_dim, device=device)
+    )
+    
+    current_state = initial_state
+    
+    # Rest of the simulation code...

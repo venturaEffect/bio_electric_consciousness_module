@@ -49,18 +49,30 @@ def initialize_models(config, device):
     # Create a properly structured config for the core
     core_config = {
         'field_dimension': config['core']['output_dim'],
-        'sodium_channel': config['core'],
-        'potassium_channel': config['core'],
-        'calcium_channel': config['core'],
-        'morphology': {
-            # Add all needed dimensions
+        'sodium_channel': {
+            'input_dim': config['core']['input_dim'],
             'hidden_dim': config['core']['hidden_dim'],
-            'state_dim': config['core']['output_dim'],  # Assuming state_dim is the same as output_dim
-            # Copy over other morphology keys
-            'spatial_resolution': config['morphology']['spatial_resolution'],
-            'diffusion_rate': config['morphology']['diffusion_rate'],
-            'reaction_rate': config['morphology']['reaction_rate']
+            'output_dim': config['core']['output_dim']
         },
+        'potassium_channel': {
+            'input_dim': config['core']['input_dim'],
+            'hidden_dim': config['core']['hidden_dim'],
+            'output_dim': config['core']['output_dim']
+        },
+        'calcium_channel': {
+            'input_dim': config['core']['input_dim'],
+            'hidden_dim': config['core']['hidden_dim'],
+            'output_dim': config['core']['output_dim']
+        },
+        'morphology': {
+            'hidden_dim': config['core']['hidden_dim'],
+            'state_dim': config['core']['output_dim'] // 2,  # Example value
+        },
+        'goals': {
+            'hidden_dim': config['core']['hidden_dim'],
+            'num_goals': 4  # Example value
+        },
+        'resting_potential': 0.2,  # Example value
         'ion_weights': {
             'sodium': 1.0,
             'potassium': -0.8,
