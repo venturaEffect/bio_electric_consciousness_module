@@ -46,13 +46,22 @@ def load_configs(args):
     return bioelectric_config, sim_params
 
 def initialize_models(config, device):
-    # Initialize core BCM components
-    core = BioelectricConsciousnessCore(
-        input_dim=config['core']['input_dim'],
-        hidden_dim=config['core']['hidden_dim'],
-        output_dim=config['core']['output_dim'],
-        num_layers=config['core']['num_layers']
-    ).to(device)
+    # Create a properly structured config for the core
+    core_config = {
+        'field_dimension': config['core']['output_dim'],
+        'sodium_channel': config['core'],
+        'potassium_channel': config['core'],
+        'calcium_channel': config['core'],
+        'morphology': config['morphology'],
+        'ion_weights': {
+            'sodium': 1.0,
+            'potassium': -0.8,
+            'calcium': 0.5
+        }
+    }
+    
+    # Initialize with the structured config
+    core = BioelectricConsciousnessCore(config=core_config).to(device)
     
     pattern_model = BioelectricPatternFormation(
         spatial_resolution=config['morphology']['spatial_resolution'],
