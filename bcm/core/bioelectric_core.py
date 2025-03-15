@@ -126,6 +126,50 @@ class BioelectricConsciousnessCore(nn.Module):
         
         return entropy.item()
 
+    def forward(self, state: BioelectricState) -> BioelectricState:
+        """
+        Process a bioelectric state through the consciousness core.
+        
+        Args:
+            state: Current bioelectric state
+            
+        Returns:
+            Updated bioelectric state
+        """
+        # Process through ion channels
+        ion_states = {}
+        for ion_name, channel in self.ion_channels.items():
+            if ion_name in state.ion_gradients:
+                ion_states[ion_name] = channel(state.ion_gradients[ion_name])
+            else:
+                # Initialize if not present
+                ion_states[ion_name] = torch.zeros_like(state.voltage_potential)
+        
+        # Update voltage potential based on ion channel states
+        voltage_update = sum(ion_states.values())
+        
+        # Process through gap junction network for cell-to-cell communication
+        voltage_communication = self.gap_junction_network(state.voltage_potential.flatten())
+        voltage_communication = voltage_communication.reshape(state.voltage_potential.shape)
+        
+        # Apply non-linearity to voltage
+        voltage_potential = torch.tanh(state.voltage_potential + voltage_update + voltage_communication)
+        
+        # Update morphological state
+        # Ensure morphological state is flattened for the encoder
+        morphology_input = torch.cat([voltage_potential.flatten(), state.morphological_state])
+        morphological_state = self.morphology_encoder(morphology_input)
+        
+        # Create updated state
+        updated_state = BioelectricState(
+            voltage_potential=voltage_potential,
+            ion_gradients=ion_states,
+            gap_junction_states=state.gap_junction_states,  # Maintain original connections
+            morphological_state=morphological_state
+        )
+        
+        return updated_state
+
 def run_simulation(models, sim_params, output_dir, device):
     # Setup simulation parameters
     time_steps = sim_params['simulation']['time_steps']
