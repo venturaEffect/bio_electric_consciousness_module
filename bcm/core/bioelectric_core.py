@@ -140,16 +140,47 @@ class BioelectricConsciousnessCore(nn.Module):
         ion_states = {}
         for ion_name, channel in self.ion_channels.items():
             if ion_name in state.ion_gradients:
-                ion_states[ion_name] = channel(state.ion_gradients[ion_name])
+                # Reshape the input to match what the channel expects
+                input_tensor = state.ion_gradients[ion_name].flatten()
+                
+                # If input dimensions don't match, resize by either padding or truncating
+                expected_dim = self.config['sodium_channel']['input_dim']
+                current_dim = input_tensor.shape[0]
+                
+                if current_dim < expected_dim:
+                    # Pad with zeros
+                    padding = torch.zeros(expected_dim - current_dim, device=input_tensor.device)
+                    input_tensor = torch.cat([input_tensor, padding])
+                elif current_dim > expected_dim:
+                    # Truncate
+                    input_tensor = input_tensor[:expected_dim]
+                    
+                # Process through channel
+                output = channel(input_tensor)
+                
+                # Reshape back to original shape
+                ion_states[ion_name] = output.reshape(state.voltage_potential.shape)
             else:
                 # Initialize if not present
                 ion_states[ion_name] = torch.zeros_like(state.voltage_potential)
         
+        # Continue with the rest of the processing...
         # Update voltage potential based on ion channel states
         voltage_update = sum(ion_states.values())
         
         # Process through gap junction network for cell-to-cell communication
-        voltage_communication = self.gap_junction_network(state.voltage_potential.flatten())
+        # Flatten, process, then reshape back
+        flattened_voltage = state.voltage_potential.flatten()
+        expected_dim = self.config['field_dimension']
+        if flattened_voltage.shape[0] != expected_dim:
+            # Resize
+            if flattened_voltage.shape[0] < expected_dim:
+                padding = torch.zeros(expected_dim - flattened_voltage.shape[0], device=flattened_voltage.device)
+                flattened_voltage = torch.cat([flattened_voltage, padding])
+            else:
+                flattened_voltage = flattened_voltage[:expected_dim]
+        
+        voltage_communication = self.gap_junction_network(flattened_voltage)
         voltage_communication = voltage_communication.reshape(state.voltage_potential.shape)
         
         # Apply non-linearity to voltage
