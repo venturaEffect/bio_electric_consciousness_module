@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import seaborn as sns
 from ..core.bioelectric_core import BioelectricState
+from matplotlib.animation import FuncAnimation
 
 # Define custom colormaps for bioelectric visualization
 BIOELECTRIC_CMAP = LinearSegmentedColormap.from_list(
@@ -35,7 +36,7 @@ def plot_voltage_potential(state, save_path=None, show=False):
     plt.tight_layout()
     
     if save_path:
-        os.makedirs(os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path)
     
     if show:
@@ -62,7 +63,7 @@ def visualize_ion_gradients(state, save_path=None, show=False):
     plt.tight_layout()
     
     if save_path:
-        os.makedirs(os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path)
     
     if show:
@@ -73,7 +74,11 @@ def visualize_ion_gradients(state, save_path=None, show=False):
 def plot_cell_colony(state, save_path=None, show=False):
     """Plot cell colony from a bioelectric state."""
     # Implementation depends on how cell colony is represented
-    pass
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Placeholder implementation
+    return None
 
 def create_bioelectric_animation(state_history, save_path=None, show=False):
     """Create an animation of bioelectric state changes over time."""
@@ -96,7 +101,7 @@ def create_bioelectric_animation(state_history, save_path=None, show=False):
     anim = FuncAnimation(fig, update, frames=min(30, len(state_history)), interval=200)
     
     if save_path:
-        os.makedirs(os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         anim.save(save_path, writer='ffmpeg', fps=5)
     
     if show:
