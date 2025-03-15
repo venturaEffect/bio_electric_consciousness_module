@@ -70,23 +70,30 @@ def initialize_models(config, device):
         },
         'goals': {
             'hidden_dim': config['core']['hidden_dim'],
-            'num_goals': 4  # Default value for number of goals
+            'num_goals': 4
         }
     }
     
     # Initialize with the structured config
     core = BioelectricConsciousnessCore(config=core_config).to(device)
     
-    # Change to use a config dict for pattern formation model
+    # Add field_dimension to pattern formation config
     pattern_config = {
+        'field_dimension': config['core']['output_dim'],  # Add this missing key
         'pattern_complexity': config['morphology'].get('pattern_complexity', 0.7),
-        'reaction_rate': config['morphology'].get('reaction_rate', 0.1)
+        'reaction_rate': config['morphology'].get('reaction_rate', 0.1),
+        'morphology': {
+            'stability_preference': 0.7,
+            'plasticity': 0.3
+        }
     }
     pattern_model = BioelectricPatternFormation(config=pattern_config).to(device)
     
-    # Continue with other initializations...
+    # Rest of initializations...
     colony = CellColony(
         config={
+            'num_cells': config['collective'].get('colony_size', 8),
+            'field_dimension': config['core']['output_dim'],
             'colony_size': config['collective']['colony_size'],
             'gap_junction_conductance': config['collective'].get('gap_junction_conductance', 0.2)
         }
