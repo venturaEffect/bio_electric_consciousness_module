@@ -52,7 +52,14 @@ def initialize_models(config, device):
         'sodium_channel': config['core'],
         'potassium_channel': config['core'],
         'calcium_channel': config['core'],
-        'morphology': config['morphology'],
+        'morphology': {
+            # Add the hidden_dim key to the morphology dictionary
+            'hidden_dim': config['core']['hidden_dim'],
+            # Copy over other morphology keys
+            'spatial_resolution': config['morphology']['spatial_resolution'],
+            'diffusion_rate': config['morphology']['diffusion_rate'],
+            'reaction_rate': config['morphology']['reaction_rate']
+        },
         'ion_weights': {
             'sodium': 1.0,
             'potassium': -0.8,
@@ -75,8 +82,12 @@ def initialize_models(config, device):
     ).to(device)
     
     homeostasis = HomeostasisRegulator(
-        strength=config['goals']['homeostasis_strength'],
-        adaptation_rate=config['goals']['adaptation_rate']
+        config={
+            'resting_potential': 0.2,
+            'field_dimension': config['core']['output_dim'],
+            'homeostasis_strength': config['goals']['homeostasis_strength'],
+            'adaptation_rate': config['goals']['adaptation_rate']
+        }
     ).to(device)
     
     return {
