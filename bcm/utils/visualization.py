@@ -108,3 +108,72 @@ def create_bioelectric_animation(state_history, save_path=None, show=False):
         plt.show()
     else:
         plt.close()
+
+def plot_pattern_formation(morphological_state, time_steps=None, save_path=None, show=False):
+    """
+    Plot pattern formation over time or at a specific time step.
+    
+    Args:
+        morphological_state: Either a single state or a list of states over time
+        time_steps: Time points for the states (if applicable)
+        save_path: Path to save the visualization
+        show: Whether to display the plot
+    """
+    plt.figure(figsize=(12, 8))
+    
+    if isinstance(morphological_state, list):
+        # Plot pattern evolution over time
+        if time_steps is None:
+            time_steps = list(range(len(morphological_state)))
+            
+        for i, state in enumerate(morphological_state):
+            if isinstance(state, torch.Tensor):
+                state_np = state.detach().cpu().numpy()
+            else:
+                state_np = state
+                
+            # Reshape to 2D if needed for visualization
+            if len(state_np.shape) == 1:
+                side_length = int(np.sqrt(state_np.shape[0]))
+                if side_length**2 == state_np.shape[0]:  # Perfect square
+                    state_np = state_np.reshape(side_length, side_length)
+                else:
+                    # Just create a roughly square shape
+                    side1 = int(np.sqrt(state_np.shape[0]))
+                    side2 = state_np.shape[0] // side1
+                    state_np = state_np.reshape(side1, side2)
+            
+            plt.subplot(1, len(morphological_state), i+1)
+            sns.heatmap(state_np, cmap='viridis', annot=False)
+            plt.title(f'Time: {time_steps[i]}')
+    else:
+        # Plot a single state
+        if isinstance(morphological_state, torch.Tensor):
+            state_np = morphological_state.detach().cpu().numpy()
+        else:
+            state_np = morphological_state
+            
+        # Reshape to 2D if needed
+        if len(state_np.shape) == 1:
+            side_length = int(np.sqrt(state_np.shape[0]))
+            if side_length**2 == state_np.shape[0]:  # Perfect square
+                state_np = state_np.reshape(side_length, side_length)
+            else:
+                # Just create a roughly square shape
+                side1 = int(np.sqrt(state_np.shape[0]))
+                side2 = state_np.shape[0] // side1
+                state_np = state_np.reshape(side1, side2)
+        
+        sns.heatmap(state_np, cmap='viridis', annot=False)
+        plt.title('Morphological Pattern')
+    
+    plt.tight_layout()
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()
