@@ -53,8 +53,9 @@ def initialize_models(config, device):
         'potassium_channel': config['core'],
         'calcium_channel': config['core'],
         'morphology': {
-            # Add the hidden_dim key to the morphology dictionary
+            # Add all needed dimensions
             'hidden_dim': config['core']['hidden_dim'],
+            'state_dim': config['core']['output_dim'],  # Assuming state_dim is the same as output_dim
             # Copy over other morphology keys
             'spatial_resolution': config['morphology']['spatial_resolution'],
             'diffusion_rate': config['morphology']['diffusion_rate'],
