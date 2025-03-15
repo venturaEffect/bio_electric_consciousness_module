@@ -66,17 +66,7 @@ def initialize_models(config, device):
         },
         'morphology': {
             'hidden_dim': config['core']['hidden_dim'],
-            'state_dim': config['core']['output_dim'] // 2,  # Example value
-        },
-        'goals': {
-            'hidden_dim': config['core']['hidden_dim'],
-            'num_goals': 4  # Example value
-        },
-        'resting_potential': 0.2,  # Example value
-        'ion_weights': {
-            'sodium': 1.0,
-            'potassium': -0.8,
-            'calcium': 0.5
+            'state_dim': config['core']['output_dim'] // 2,
         }
     }
     
