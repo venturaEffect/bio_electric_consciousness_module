@@ -46,7 +46,7 @@ def load_configs(args):
     return bioelectric_config, sim_params
 
 def initialize_models(config, device):
-    # Create a properly structured config for the core
+    # Core config remains the same...
     core_config = {
         'field_dimension': config['core']['output_dim'],
         'sodium_channel': {
@@ -67,29 +67,36 @@ def initialize_models(config, device):
         'morphology': {
             'hidden_dim': config['core']['hidden_dim'],
             'state_dim': config['core']['output_dim'] // 2,
+        },
+        'goals': {
+            'hidden_dim': config['core']['hidden_dim'],
+            'num_goals': 4  # Default value for number of goals
         }
     }
     
     # Initialize with the structured config
     core = BioelectricConsciousnessCore(config=core_config).to(device)
     
-    pattern_model = BioelectricPatternFormation(
-        spatial_resolution=config['morphology']['spatial_resolution'],
-        diffusion_rate=config['morphology']['diffusion_rate'],
-        reaction_rate=config['morphology']['reaction_rate']
-    ).to(device)
+    # Change to use a config dict for pattern formation model
+    pattern_config = {
+        'pattern_complexity': config['morphology'].get('pattern_complexity', 0.7),
+        'reaction_rate': config['morphology'].get('reaction_rate', 0.1)
+    }
+    pattern_model = BioelectricPatternFormation(config=pattern_config).to(device)
     
+    # Continue with other initializations...
     colony = CellColony(
-        colony_size=config['collective']['colony_size'],
-        connection_density=config['collective']['connection_density']
+        config={
+            'colony_size': config['collective']['colony_size'],
+            'gap_junction_conductance': config['collective'].get('gap_junction_conductance', 0.2)
+        }
     ).to(device)
     
     homeostasis = HomeostasisRegulator(
         config={
+            'homeostasis_strength': config['goals'].get('homeostasis_strength', 0.8),
             'resting_potential': 0.2,
-            'field_dimension': config['core']['output_dim'],
-            'homeostasis_strength': config['goals']['homeostasis_strength'],
-            'adaptation_rate': config['goals']['adaptation_rate']
+            'field_dimension': config['core']['output_dim']
         }
     ).to(device)
     
