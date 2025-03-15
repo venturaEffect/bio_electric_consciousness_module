@@ -97,3 +97,74 @@ class BioelectricPatternFormation(nn.Module):
             'sparsity': sparsity,
             'dominant_frequency': torch.argmax(power_spectrum).item()
         }
+    
+    def forward(self, state):
+        """
+        Process a bioelectric state through the pattern formation network.
+        
+        Args:
+            state: Current bioelectric state
+            
+        Returns:
+            Updated bioelectric state with new morphological patterns
+        """
+        # Extract morphological state and voltage potential
+        morphological_state = state.morphological_state
+        voltage = state.voltage_potential
+        
+        # Convert to appropriate format if needed
+        if isinstance(morphological_state, torch.Tensor):
+            morph_flat = morphological_state.flatten()
+        else:
+            morph_flat = torch.tensor(morphological_state, device=voltage.device).flatten()
+        
+        # Get config parameters
+        field_dim = self.config['field_dimension']
+        pattern_complexity = self.config['pattern_complexity']
+        reaction_rate = self.config['reaction_rate']
+        
+        # Resize if needed
+        if len(morph_flat) < field_dim:
+            # Pad with zeros
+            padding = torch.zeros(field_dim - len(morph_flat), device=morph_flat.device)
+            morph_flat = torch.cat([morph_flat, padding])
+        elif len(morph_flat) > field_dim:
+            # Truncate
+            morph_flat = morph_flat[:field_dim]
+        
+        # Implement reaction-diffusion-like dynamics
+        # Simple example: combine current state with voltage influence
+        voltage_influence = voltage.flatten()[:len(morph_flat)] * reaction_rate
+        
+        # Ensure voltage_influence has correct dimensions
+        if len(voltage_influence) < len(morph_flat):
+            padding = torch.zeros(len(morph_flat) - len(voltage_influence), device=voltage_influence.device)
+            voltage_influence = torch.cat([voltage_influence, padding])
+        elif len(voltage_influence) > len(morph_flat):
+            voltage_influence = voltage_influence[:len(morph_flat)]
+        
+        # Update state with reaction term and non-linearity
+        updated_morph = torch.tanh(morph_flat + voltage_influence)
+        
+        # Apply diffusion-like smoothing using a simple averaging operation
+        # Create a diffusion kernel
+        smoothed_morph = updated_morph
+        if len(updated_morph) > 3:  # Only if we have enough points
+            # Simple 1D diffusion (rolling average)
+            kernel_size = 3
+            padding = torch.nn.functional.pad(updated_morph, (1, 1), mode='replicate')
+            for i in range(len(updated_morph)):
+                smoothed_morph[i] = torch.mean(padding[i:i+kernel_size])
+        
+        # Blend original and smoothed states based on pattern complexity
+        final_morph = pattern_complexity * smoothed_morph + (1 - pattern_complexity) * updated_morph
+        
+        # Create updated state with same shape as input
+        updated_state = type(state)(
+            voltage_potential=state.voltage_potential,
+            ion_gradients=state.ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=final_morph
+        )
+        
+        return updated_state
