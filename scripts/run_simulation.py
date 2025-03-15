@@ -77,9 +77,9 @@ def initialize_models(config, device):
     # Initialize with the structured config
     core = BioelectricConsciousnessCore(config=core_config).to(device)
     
-    # Add field_dimension to pattern formation config
+    # Pattern formation config
     pattern_config = {
-        'field_dimension': config['core']['output_dim'],  # Add this missing key
+        'field_dimension': config['core']['output_dim'],
         'pattern_complexity': config['morphology'].get('pattern_complexity', 0.7),
         'reaction_rate': config['morphology'].get('reaction_rate', 0.1),
         'morphology': {
@@ -89,15 +89,19 @@ def initialize_models(config, device):
     }
     pattern_model = BioelectricPatternFormation(config=pattern_config).to(device)
     
-    # Rest of initializations...
-    colony = CellColony(
-        config={
-            'num_cells': config['collective'].get('colony_size', 8),
-            'field_dimension': config['core']['output_dim'],
-            'colony_size': config['collective']['colony_size'],
-            'gap_junction_conductance': config['collective'].get('gap_junction_conductance', 0.2)
-        }
-    ).to(device)
+    # Create a proper config for cell colony that INCLUDES the sodium_channel structure
+    colony_config = {
+        'field_dimension': config['core']['output_dim'],
+        'colony_size': config['collective'].get('colony_size', 10),
+        'gap_junction_conductance': config['collective'].get('gap_junction_conductance', 0.2),
+        # Include the required channel configs to avoid KeyError
+        'sodium_channel': core_config['sodium_channel'],
+        'potassium_channel': core_config['potassium_channel'],
+        'calcium_channel': core_config['calcium_channel'],
+        'morphology': core_config['morphology'],
+        'goals': core_config['goals']
+    }
+    colony = CellColony(config=colony_config).to(device)
     
     homeostasis = HomeostasisRegulator(
         config={
