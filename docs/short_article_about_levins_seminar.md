@@ -1,1180 +1,424 @@
- 
+## Collective Intelligence of Cells: Bioelectric Communication, Morphogenesis, and Cognition
 
- 
- 
- 
-Alan Turin g, the pionee ring comput e r scientis t, fa mous l y ex plored both art ificial int ell igenc e and 
-the 
-chemical bas is of  mo rphogenesis
-. In doing so,  he 
-hint ed at a pro found c onnecti on betwe en 
-the self
--
-c reati on of mi nd s and the self
--
-cre ati on of bodies. Modern dev elopm ental biol og y 
+### Introduction
 
-cognit ion ar e de epl y int e rtwine
-d. Underst anding h ow a coll ecti on of cell s a ssembles it self int o a 
-compl ex  organism  ma y b e ke y to understandin g h ow minds  emer ge f rom matt er.
- 
-In thi s seminar, we ex plore how livi ng cell s form cooperati ve n etworks tha t sol ve problems, 
-creat e bod y structur es
-, an d even rem ember go als. Four bro ad themes will  be address ed. First, w e 
-surve y 
-re mark ab le exa mp les of  b iol ogical in telli gen ce
- 
+Alan Turing, the pioneering computer scientist, famously explored both artificial intelligence and
+the chemical basis of morphogenesis. In doing so, he hinted at a profound connection between
+the self-creation of minds and the self-creation of bodies. Modern developmental biology
+supports this connection: the processes that build an embryo’s body and those that give rise to
+cognition are deeply intertwined. Understanding how a collection of cells assembles itself into a
+complex organism may be key to understanding how minds emerge from matter.
+In this seminar, we explore how living cells form cooperative networks that solve problems,
+create body structures, and even remember goals. Four broad themes will be addressed. First, we
+survey remarkable examples of biological intelligence – cases where organisms show
+surprising plasticity and problem-solving in building or repairing their bodies. Next, we discuss
+cellular intelligence as a theoretical framework, examining how individual cells and tissues
+exhibit goal-directed behavior across scales. We then examine **bioelectric communication** as a
+means by which cells coordinate growth and form, and how we can intercept these signals to
+alter anatomy. Finally, we consider the **philosophy of cognition**, asking what these biological
+insights mean for understanding minds and for the future creation of novel life forms.
+Throughout, the focus is on how biology composes agents – cells and tissues with agendas – into
+larger intelligent systems, and what this means for regenerative medicine, cognitive science, and
+even ethics in a world of new hybrid creatures.
 
- 
-cases wher e or ganism s show 
-surprisi ng plasti cit y and problem
--
-solvi ng in bui ldi ng or repairin g thei r bodies. Nex t, we discuss 
-c
-ell u lar in tell igence
- 
-as a  theoreti cal f ramewo rk, e x ami ning how indivi dual cell s and ti ssues 
-ex hibi t goal
--
-directed b eh avior ac ross scales. W e t hen ex ami ne 
-b ioelectric co mmu n ication
- 
-as a 
-means b y which c ell s co ordinate growth and for m, and how we c an int er ce
-pt t hese si gnals t o 
-alt er anatom y. Finall y, w e consi der the 
-p h il osop hy of  cogn ition
-, asking what t hese biol ogic al 
-insi ghts m ean for und erst anding mi nds and fo r the  future cr eati on of nov el l ife forms. 
-Throughout, t he focus i s on how biolog y compos e s 
-agents
- 
+### Examples of Biological Intelligence
 
- 
-cell s and ti ssues wit h a gendas 
+Living organisms routinely accomplish morphological feats that resemble problem-solving. A
+number of striking examples illustrate how cells and tissues can adapt to novel circumstances in
+pursuit of a structural goal:
 
- 
-int o 
-larger intell igent s ystems, and what t his m eans for  re gene rati ve medicin e, c ognit ive scien ce, and 
-even ethi cs in a wo rld of new h ybrid cr eatur es.
- 
- 
- 
-Livi n g or ganism s routine l y a ccomp
-li sh m orphologi cal feats t hat r esembl e p roblem
--
-solvi ng. A 
-number of striki ng ex ampl es il lust rate how cell s a nd ti ssues can adapt t o n ovel circumst anc es in 
-pursuit of a structural go al:
- 
+- **Transplanted Eye Function:** Tadpoles normally have eyes connected to their brain’s
+  visual center, yet if an eye bud is transplanted onto a tadpole’s tail (far from the brain),
+  the animal can still see through that eye. Despite the eye forming in an unusual location
+  with a misrouted optic nerve, the nervous system finds a way to make it functional. This
+  suggests the tadpole’s body is not hardwired only for the “standard” anatomy – instead, it
+  is a **problem-solving agent** that can adapt its wiring to make use of available organs.
 
- 
-T ran sp lan ted  E ye Fu n ction :
- 
-Tadpoles normall y have e yes conne cted to the
+- **Memory in Regenerating Worms:** Planarian flatworms can be trained to prefer certain
+  environments, such as specific textures when seeking food. Remarkably, if a trained
+  planarian is decapitated, the tail fragment (with no brain) remains inactive for about a
+  week until it regenerates a new head. Once a new brain grows, the worm resumes activity
+  and **retains the memory** of its training. This means the information was stored in the body and imprinted onto the new brain. The memory survived decapitation, indicating
+  that learned information is distributed in tissues beyond just the brain.
 
+- **Insect Wing Deception:** Some organisms use their bodies to run “virtual simulations”
+  that solve ecological problems. One species of fly, for example, has distinctive wing
+  markings and movements that mimic the appearance of scurrying ants. By moving its
+  patterned wings in a certain way, the fly convinces predators it is an ant (which many
+  predators avoid). In essence, the fly’s wings serve as a low-resolution display, **virtually embodying** a different creature to keep the fly safe. This adaptation shows the ingenuity
+  of evolution in equipping even small organisms with behavioral tricks that virtually solve
+  threats.
 
-the anim al can st il l see th rough that e ye. D espit e the e ye fo rming in an unu sual l ocati on 
-with a mis routed opti c ne rve, the ne rvous s yst em f inds a wa y t
-o make it  fun cti onal. Thi s 
+- **Self-Correcting Frog Development:** As tadpoles metamorphose into frogs, their facial
+  organs (eyes, jaws, nostrils, etc.) must move to new positions. One might think this is a
+  rigid, pre-programmed sequence. To test this, researchers created “Picasso tadpoles” with
+  scrambled face anatomy – eyes on the tail, mouth on the side, etc.. Astonishingly, these
+  tadpoles still morphed into near-normal frogs. Organs navigated through unusual paths,
+  moving until the correct frog face configuration was achieved. They did not stop in
+  wrong places or follow a fixed route. Instead, the cells and tissues pursued a
+  **developmental goal** (the standard frog layout) by whatever route necessary, minimizing
+  error until the target pattern was reached. This implies that genetics does not encode a
+  rigid series of movements, but rather an **error-minimizing process** – a feedback loop
+  that assesses current versus goal anatomy and adjusts accordingly.
 
+- **Antler Injury Memory:** Deer regenerate their antlers every year, regrowing complex
+  structures of bone, vasculature, and nerves. Experiments showed that if an injury or notch
+  is made at a specific location on a developing antler, the next set of antlers will
+  unexpectedly grow an extra branch at that prior injury site. The deer’s body somehow
+  **remembers the location of damage** months later when rebuilding the antlers, resulting
+  in an anatomical “mark” of the past event. This memory is not genetic – it is formed
+  within the cells of the growing antler and persists through the antler shedding cycle. Such
+  **tissue memory** of an injury highlights how information can be stored in bodily form and
+  used later to alter growth patterns.
 
- 
-inst ead, it  
-is a 
-p rob lem
--
-solvi n g agen t
- 
-that can ad apt i ts wiring to m ake us e of av ail a ble organs.
- 
+- **Wasp-Induced Plant Galls:** An oak tree’s genome reliably produces oak leaves from
+  each bud. Yet a parasitic wasp can inject signals that **hack the development** of the oak,
+  causing it to grow a bulbous gall structure instead of a flat leaf. These galls can be highly
+  complex, sometimes colorful and spiky or uniquely shaped, and they house the wasp’s
+  larvae. The wasp’s signals reveal that the oak’s cells had the latent **competency** to form
+  many shapes, not just leaves. In other words, the plant’s developmental program is
+  **reprogrammable** – with new instructions, its cells collaboratively construct a structure
+  outside their normal repertoire. This implies that what a genome encodes is not a single
+  hardwired outcome, but a default outcome that can be diverted by alternative signals. If
+  we learn to communicate the right signals, we too might induce cells to build novel
+  structures for our purposes, much as the wasp does.
 
- 
-Me mory in  R egen era tin g Wor ms:
- 
-P lanari an flat worms ca
-n be t rained to prefe r ce rtain 
-environments, s uch as sp ecific tex tures when s eek ing food. R ema rkabl y, if a trained 
-planarian is d e capit ated, t he tail fra gment ( with no brain) rem ains i nacti ve f or about a 
-week unti l i t re gene rates a new he ad. Onc e a n ew bra
-in grows, the wo rm re sumes acti vit y 
-and 
-retain s the me mo ry
- 
-of its t raini ng. This m ea ns t he information was st ored in t he 
+Taken together, these examples demonstrate that living systems are not rigid machines simply
+executing a genetic blueprint. Rather, they behave as adaptive, **goal-seeking collectives**.
+Tadpole bodies make creative use of organs in odd places; worms store and recall information
+across radical body changes; cells coordinate to correct disruptions and remember past events.
 
+Biology shows an impressive plasticity and problem-solving capacity, suggesting that even cells
+and tissues possess a kind of primitive intelligence oriented toward building and maintaining the
+correct anatomy. This sets the stage for asking how such intelligence is implemented and how we
+might interact with it.
 
-bod y and im printed onto the new brain. Th e 
-me m ory su rvived d ecap itation
-, indi cati ng 
-that learned info rmati on is dist ributed in t iss ues 
-beyo nd jus t t he brain.
- 
+### Cellular Intelligence and Multi-Scale Organization
 
- 
-In sect Win g Decep tion :
- 
-
-that sol ve ecolo gical pro blems. One species o f fl y, for ex ampl e, has di sti ncti ve wing 
-markings and movement s that m im ic the appeara nce of scu rr yin g a
-nts. B y movi ng it s 
-patt erned win gs in a cert ain wa y, the fl y convin ce s predators it  is an ant (w hich man y 
-
--
-r esolut ion di spla y, 
-vi rtual ly 
-e mb od yin g
- 
-a different c r eature to ke ep the fl y sa f e. This a
-daptation shows the ingenuit y 
-of evolut ion i n equippi ng even sm all  or ganism s wi th behavioral t ricks t hat 
-v irt uall y
- 
-solve 
-threats.
- 
-
- 
-S elf
--
-Correctin g Frog D evelop men t:
- 
-As tadpol es  metamorphose int o fro gs, t heir facial 
-organs (e ye s, jaws, nost ri ls, etc.) must m
-ove to new posi ti ons. One mi ght t hink t his i s a 
-rigid, pr e
--
-
-scrambl ed f ace anatom y 
-
- 
-e ye s on t he tail, m outh on t he side, etc.. Astoni shingl y, these 
-tadpoles st il l m orphed into n
-ear
--
-no rmal fro gs. O r gans navigated throu gh un usual paths, 
-movi ng unti l t he corr ect f rog fac e confi gu rati on w as achiev ed. The y did no t st op in 
-wron g places o r foll ow a fix ed route. Inste ad, the c ell s and ti ssues pursued a  
-d evelop men tal goal
- 
-(the standard fr
-o g l a yout) b y whatever route ne cessa r y, mi nim iz ing 
-error unti l t he tar get patte rn was r each ed. This i mpl ies that gen eti cs does no t encode a 
-rigid seri es of movement s, but  rather an 
-erro r
--
-mi n imizin g p rocess
- 
-
- 
-a fee dback loop 
-that assesses cur rent ve rs us goa
-l a natom y and adju sts  accordin gl y.
- 
-
- 
-Antler In jury Me mory:
- 
-Deer re gen erat e their ant lers ever y ye a r, re growin g compl ex  
-structures of bon e, vascul ature, and n erves. Ex peri ments showed that if an i njur y or not ch 
-is m ade at a spe cific loca ti on on a developi ng a
-ntl er, the nex t set of antl ers will  
-
-re me mb ers the lo cation  of  d amage
- 
-mont hs l ater when rebuil din g the antl e rs, result ing 
- 
-mor y is no t gen eti c 
-
- 
-it  is formed 
-withi n the cell s of the gr owing antl e r and pe rsist s through the antl er sheddi ng c yc le. Such 
-tissu e me mory
- 
-o f an inj ur y hi ghli ghts ho w infor mation can be stored in b odil y form and 
-used later to alt er growth  patt erns.
- 
-
- 
-Wasp
--
-In d u ced  Plan t Gall s:
- 
-
-each bud. Y et a pa rasit ic wasp can inj e ct si gn als t hat 
-h ack  the develop men t
- 
-of the oak, 
-causing it  to grow a bulb ous gall  structur e inst ead of a flat l e af. Thes e gall s can be hi ghl
-y 
-
-
-co mp et e n cy
- 
-to form 
-
-s 
-rep rogra mmab le
- 
-
- 
-with new inst ructi ons, i ts cell s coll aborati vel y const ru ct a structure 
-outsi de their normal rep e rtoire. This i mpl ies that what a genome encod es is  not a single 
-hardwired out come, but a  default  outcome that c an  be diverted b y alt e rnati v e 
-signals. If 
-we learn to comm unicate  the right si gnals, we too mi ght i nduce c ell s to b uil d novel 
-structures for ou r purpos es, mu ch as the w asp doe s.
- 
-Taken to gethe r, these ex a mpl es demons trate that l ivi ng s ystems ar e not rigi d machines sim pl y 
-ex ecuti ng a gen
-eti c bluep rint. R ather, the y behav e as 
-ad ap tive, goal
--
-seek in g coll ectives
-. 
-Tadpole bodies make cre ati ve use of or gans i n odd places; worms st ore an d recall  inform ati on 
-across r adical bod y ch an ges; c ell s coordinate to c orrect di sruptions  and r e member past e
-v ents. 
-
-
-Biol og y shows an im pres sive plasti cit y and probl e m
--
-solvi ng cap acit y, su ggesti ng that ev en cell s 
-and ti ssues possess a kind of primi ti ve int ell igenc e oriented towa rd buil ding and m aint aini ng the 
-corre ct anatom y. This s et s the stage for asking ho w suc
-h int ell igen ce is i mpl emented and how w e 
-mi ght i nteract wit h it .
- 
- 
-
- 
- 
-How do cell s, which indi viduall y hav e onl y lo cal awar eness, come to gethe r to cre ate a 
-centrali z ed or ganism  or e ven a mi nd?  The ke y is t o rec
-o gniz e that ea ch lev el of biol ogic al 
-organiz ati on 
-
- 
-from m olecular netwo rks wit hin one cell  up throu gh or gans and whole or ganism s 
-
- 
-has 
-agen t
--
-li k e p rop ert ies
-. In oth er words, lif e is organiz ed as a 
-mu lti
--
-sca le co mp et en cy 
-arch itec ture
-. At ev er y le vel, compo
-nents ar e tr yin g to a ccompl ish go als i n their respe cti ve 
+How do cells, which individually have only local awareness, come together to create a
+centralized organism or even a mind? The key is to recognize that each level of biological
+organization – from molecular networks within one cell up through organs and whole organisms
+– has agent-like properties. In other words, life is organized as a multi-scale competency
+architecture. At every level, components are trying to accomplish goals in their respective
 spaces.
- 
-Even a sin gle c ell  can be surprisi ngl y sophi sti cate d. For instanc e, a sin gle
--
-cell ed or ganism  li ke 
-L acrymaria
- 
 
-y 
-handli ng senso r y input , movement, and fe eding 
+Even a single cell can be surprisingly sophisticated. For instance, a single-celled organism like
+_Lacrymaria_ (a protist) hunts prey by extending and contracting a snakelike “neck,” effectively
+handling sensory input, movement, and feeding – all without a nervous system. Within each cell,
+complex biochemical networks regulate activity. In fact, molecular circuits (gene regulatory
+networks, signaling pathways, etc.) can exhibit learning and memory at the sub-cellular level.
+Experiments have shown that even simple gene networks are capable of forms of learning such
+as habituation and Pavlovian conditioning. Thus, basal cognition exists at the level of molecular
+biology. Each cell contains components that sense and respond to conditions, adapting their state
+based on past stimuli.
 
- 
-all  without  a nervous s ys tem. W it hin each cell , 
-compl ex  biochemi cal networks re gulat e acti vit y. In fact, m olecula r cir cuit s (gene r e gulator y 
-networks, si gn ali ng p athwa ys, etc.) can ex hibi t l earning and memo
-r y at t he sub
--
-cell ular l evel. 
-Ex periments have shown that even si mpl e gene n e tworks are capabl e of fo r ms of learnin g such 
-as habit uati on and P avlovi an condit ioni ng. Thus, 
-b asal  cogn ition
- 
-ex ist s atthe level of mol ecula r 
-biol og y. Each cell  contai ns componen
-ts t hat sense  and respond t o condit ion s, adapti ng thei r state 
-based on past s ti mul i.
- 
-Mult icell ular bodies li ke ours are the refo re 
-coll ect ive in tell igences
-. Our 37  tril li on cell s 
-cooperat e to produc e a u nified or ganism , but each  cell  has it s own a gend a ( sur
-vival, growth, etc.) 
-and competen cies (the li ver cell  c an r e gulate bloo d chemi str y, n eurons c an  process si gnals, 
-im mune cell s can lea rn to reco gniz e invade rs). D uring emb r yonic dev elopm ent, t here is no  single 
+Multicellular bodies like ours are therefore **collective intelligences**. Our 37 trillion cells
+cooperate to produce a unified organism, but each cell has its own agenda (survival, growth, etc.)
+and competencies (the liver cell can regulate blood chemistry, neurons can process signals,
+immune cells can learn to recognize invaders). During embryonic development, there is no single
+moment when “mind” appears – a fertilized egg gradually self-assembles into a thinking
+organism without a sharp threshold. The process from physics to mind is continuous. In our own
+life history, we all journeyed from being a single cell to an adult with a complex brain, gaining
+cognitive ability gradually along the way.
 
+Crucially, there isn’t truly “one brain” at the top – even the brain is made of many smaller agents
+(cells), which in turn are made of molecular networks. Philosopher René Descartes assumed the
+human mind must have a single locus (he fancied the pineal gland as the seat of the soul because
+it is singular). But microscopes revealed the pineal gland is composed of many cells, each cell a
+world of molecular activity. In reality, **there is no single indivisible control center** – instead, at every scale we find networks of competent units. Biology is **“fractal” intelligence**, with
+problem-solving at nested levels.
 
- 
-a fertili z ed e gg g
-r aduall y s elf
--
-ass embl es int o a thi nking 
-organism  without  a sharp  threshol d. The proc ess fr om ph ysics to m ind i s conti nuous. In our own 
-li fe hist or y, w e all  journe ye d from bein g a sin gle c ell  to an adult  with a compl ex  brain, gaini n g 
-cognit ive abil it y gradu
-all y alon g the wa y.
- 
+What defines intelligence in this context? A useful definition, from psychologist William James,
+is the **ability to reach the same goal by different means**. By this definition, even cell clusters
+exhibit intelligence: they achieve target outcomes (like correct anatomy) despite perturbations.
+They can improvise and adjust actions when conditions change. We saw examples of this in the
+previous section: an embryo cut in half can still form two smaller, complete organisms rather than a half-formed one, demonstrating that development can adapt to a new starting state and still
+reach the goal of a whole body. Similarly, a salamander’s cells regrow a perfect limb after
+amputation, stopping precisely when the limb is complete. These are instances of anatomic goal-
+seeking. The cells do not simply grow tissue blindly; they measure progress and know when the
+correct shape has been achieved.
 
+This kind of intelligence operates in spaces that we humans do not intuitively perceive. We are
+accustomed to recognizing agency in animals moving through three-dimensional space (for
+example, a dog navigating a maze). But cellular collectives navigate **physiological and anatomical spaces**. For example, during development, cells move the embryo through **morphospace** – the space of possible anatomical configurations – from a single cell state toward a species-specific body plan. This journey is remarkably reliable and robust, yet not rigid. If knocked off course (by cutting an embryo in two, for instance), cells can still find a path to a complete body. That reliability is not just due to genetic programming – it is due to feedback, communication, and collective decision-making among cells about how to reach the goal shape.
 
- 
-even the br ain i s made o f man y sm all er a gents 
-(cell s), which in turn are made of molecula r netwo rks. Phi losop her René De scartes assum ed the 
-human mind m ust have a single locus (h e fa
-n cied the pineal gland as the s e at of the soul  bec ause 
-it  is s ingular). But m ic roscopes rev ealed th e pineal  gland is compos ed o f man y cell s, ea ch c ell  a 
-world of mol ecular acti vi t y. In r eali t y, 
-ther e is n o si n gle in divi sib le con trol cen ter
- 
+Some organisms retain lifelong anatomical plasticity. The axolotl (a type of salamander) can
+regenerate eyes, jaws, portions of its brain, even as an adult. Every time it loses a limb or organ,
+cells at the injury site work together to rebuild exactly what was lost and then stop. Notably, they
+**know when to stop** – regeneration ceases once a correct limb has been reformed, indicating that
+cells know the target pattern and recognize when it is achieved. In one experiment from the
+1950s, a tail was grafted onto an axolotl’s flank. Instead of simply keeping a misplaced tail, over
+time the extra tail gradually **remodeled itself into a limb** to better match the overall body plan.
+The cells in the tail, finding themselves in an unusual context, collectively decided to transform
+their structure into a leg (including forming toes at the tip) so that the animal ends up with a
+more coherent anatomy. This is a stunning example of collective cellular intelligence: the system
+had no evolutionary precedent for “tail on the side of body,” yet the cells innovated a solution
+(change tail to leg) to restore anatomical harmony.
 
- 
-inst e ad, at 
-ev
-er y sc ale w e find netw orks of competent uni ts. Biol og y is 
- 
-, with 
-problem
--
-solvi ng at n este d levels.
- 
-W hat defines int ell igenc e  in t his contex t?  A useful definiti on, from ps yc hologist  W il li amJ ames, 
-is t he 
-ab il ity to reach  the sa me goal 
-b y d iff eren t  mean s
-. B y thi s definiti on, even c ell  clust ers 
-ex hibi t i ntelli gence: t he y achieve t ar get out comes (like corr ect an atom y) de spit e perturbati ons. 
-The y can im provise and adjust  acti ons when cond it ions change. W e s aw ex ampl es of this  in t he 
-previou
-s secti on: an emb r yo cut i n half c an st il l form t wo small er, compl ete  organism s rather 
+These observations lead to an important concept: **the body possesses a kind of memory and decision-making apparatus for shape**. We can think of the correct anatomy as an “attractor”
+state in a complex state space, and the cells as working to get the body to that attractor. They
+have **embodied memories of the target morphology**. We normally think of memory as a
+nervous system function (brain memory), but developmental and regenerative biology suggest
+there are non-neural memories of shape. We saw that planarian flatworms can hold two different
+“internal visions” of what their body should be (one head vs. two heads), and this latent
+information only manifests upon regeneration. Likewise, the salamander’s cells “remember” that
+a tail does not belong on the side of the body and act to eliminate it by converting it to a limb. In
+each case, cellular networks store a representation of the correct structure and compare current
+conditions to this goal state, much like how a brain might hold a goal and guide the organism’s
+actions to achieve it.
 
+In summary, cells and tissues are **agents navigating space toward a goal**. Embryogenesis and
+regeneration are not just mechanical processes but informational processes, wherein cells
+communicate, make decisions, and perform actions to minimize error relative to a species-
+specific ideal form. Our bodies are built by **collections of microscopic problem-solvers** employing feedback loops and stored target states. This perspective of cellular intelligence
+reframes development as a kind of collective cognition. Next, we examine how cells
+communicate to coordinate these complex projects, focusing on bioelectric signals as the
+language of cellular collectives.
 
-than a half
--
-formed on e, d emons trati ng that d evelo pment can ad apt t o a new  starti ng state and st il l 
- 
- 
-a p e rfect l im b afte r 
-amput ati on, st opping pre cisel y wh en the lim b is c ompl ete. These a re inst an ces of an atom ic goal
--
-seeking. The c ell s do not  sim pl y grow ti ssue blindl y;  the y me asure pro gress and know when the 
-corre ct shape h as been ac hieved.
- 
-This ki nd of
- 
-int ell igence operates in spa ces that w e humans do not i ntui ti vel y per ceive. W e are 
-accustom ed to r eco gniz ing a genc y in animals m ov ing throu gh thre e
--
-dim ens ional space ( for 
-ex ampl e, a dog n avigating a m az e). But cell ular c oll ecti ves navigate 
-p h ysiol ogical a
-nd 
-an atomical sp ac es
-. For ex ampl e, during dev elopm ent, cell s mov e the em br yo throu gh 
-mo rp h osp ace
- 
+### Bioelectric Communication
 
- 
-the spac e of possi ble anatom ical configu rati ons 
+One of the primary ways cells coordinate their activity and remember target shapes is through
+**bioelectric signals**: flows of ions that create voltage gradients across cell membranes. While
+neurons use electrical impulses to process information in the brain, it turns out that non-neural
+cells throughout the body also use electrical potentials to communicate and organize structure. In
+fact, the use of bioelectric networks is **ancient** – it arose long before specialized brains, dating back to early single-celled organisms and bacterial communities. Every cell in the body has ion channels that regulate its voltage, and neighboring cells are often connected by junctions that
+allow currents to flow between them. Thus, all cells form electrical networks reminiscent of
+neural networks, just slower in timescale.
 
- 
-from a s ingle c ell  state toward 
-a species
--
-sp ecific bod y p lan. This j ourne y is r ema rkabl y reli able and robus
-t, yet not  ri gid. If 
-knocked off course (b y c utt ing an embr yo in t wo, for inst ance ), cell s c an st il l find a path t o a 
-compl ete bod y. That r eli abil it y is no t j ust du e to geneti c pro gr amm ing 
+We can draw an analogy between the brain and the rest of the body: **the brain’s electrical network controls behavior** (muscle movements through 3D space), whereas the **body’s electrical network controls anatomy** (cell movements and growth through morphospace). Both
+systems store information and make decisions via electrical patterns. Evolutionarily, what likely
+happened is that the ancient bioelectrical machinery used for anatomical control was co-opted
+and elaborated to form fast-thinking brains for behavioral control. The fundamental trick is the
+same: use voltage-based communication as a **cognitive glue** to bind individual cells into a
+unified problem-solving system. Just as neurons share electrical signals to represent goals (like
+finding food) and achieve them by moving the body, all cells can share electrical signals to
+represent anatomical goals (like “build one head here”) and achieve them by moving tissues,
+changing gene expression, or other growth-related actions.
 
- 
-it  is du e to feedb ack, 
-comm unicati on, and coll ecti ve de cisi on
--
-mak
-ing a mong c ell s about how to reach th e goal shap e.
- 
-S ome organism s retain li felong anatom ical pl asti c it y. The ax olot l (a t yp e of  salamander ) can 
-re gene rate e yes, jaws, po rtions of it s brain, even a s an adult . Ever y ti me it l oses a li mb or or gan, 
-cell s at t h
-e inj ur y sit e wo rk togeth er to rebuil d ex a ctl y wh at was los t and th en st op. Notabl y, the y 
-k n ow  when to stop
- 
+To understand these bioelectric conversations, my lab and others have developed techniques to
+**read and write the bioelectric code** that cells use. On the reading side, we use voltage-sensitive
+dyes and fluorescence imaging to visualize the electrical state of cells in vivo. For example, we
+can bathe an early frog embryo in a voltage-sensitive dye and film the dynamic voltage patterns
+across its cells. This produces an “electrical map” of the embryo – a literal illumination of which
+cells are more electrically charged (depolarized) or less (hyperpolarized) at any given time.
 
- 
-regen erati on c eas es once a corre ct l im b has been r ef ormed, indi cati ng th at 
-cell s know the tar get pattern and r eco gniz e when i t i s achieved. In on e
- 
-ex periment from t he 
+When we do this, we see that well before anatomical features form, there are **electrical prepatterns** that anticipate the final layout. In a frog embryo, for instance, we can detect an
+**“electric face”** pattern: a specific arrangement of voltage regions that predicts where the facial
+features will form. A cluster of cells with a particular voltage marks the future eye, another
+region marks the future mouth, and so on – appearing **before** the genes and tissues visibly create
+those organs. Disrupting this bioelectric pattern can lead to malformed faces, indicating that the
+pattern is not just a passive marker but a **functional instructive signal** guiding development.
+Voltage imaging also reveals that groups of cells (or even separate embryos in proximity)
+communicate electrically. For example, if one embryo in a cluster is injured, an electrical injury
+signal propagates to neighboring embryos, alerting them to the disturbance. This shows bioelectric signaling can operate on a tissue and whole-organism level, coordinating responses
+across distances.
 
-ti me the ex tra tail gradu a ll y 
-re mod eled i tself  in to a limb
- 
-to better match th e overall  bod y plan. 
-The cell s in t he tail, finding themse
-lves in an unusual contex t, collecti vel y decided to transfo rm 
-their structure int o a le g ( including formi n g toes at  the tip) so that the anim al ends up wit h a 
-more cohe rent an atom y. This i s a stunn ing ex ampl e of coll ecti ve cell ular in telli genc e: t he s ystem
- 
- 
-(chan ge t ail  to l eg) to res tore anatom ical h armon y.
- 
-These observ ati ons l ead t o an im portant concept:  
-t h e b od y p ossesses a k ind  of  me mory an d  
-d ecisi on
--
-mak in g a
-p p aratus f or sh ap e
+Reading the bioelectric state is only half the story – we also want to **rewrite those patterns** to
+see if we can direct cells to build particular structures. Importantly, we do not use gross electrical shocks or external fields; instead, we act through the same molecular mechanisms cells use. By manipulating ion channels (through drugs, genetic tools, or light-activated channels in
+optogenetics), we can set regions of tissue to a desired voltage state or alter the connectivity of
+the electrical network. In essence, we hack the electrical communication interface of the cells.
+This approach is analogous to sending new instructions over the cells’ own signaling network.
+We can tell cells things like “you are an eye” or “make two heads” by imitating the bioelectric
+cues for those outcomes, without altering any genes directly.
 
-state in a compl ex  state space, and the c ell s as wor king to get t he bod y to t h at attractor. Th e y 
-have 
-e mb od ied me mori es of  the target morp h ology
-. W e normall y thi nk of memor y as a 
-ner
-vous s yst em functi on (brain m emor y), but d eve lopm ental and re gen er ati ve biol og y su ggest 
-there a re non
--
-n eural m e mories of shape. W e sa w  that planarian flat worms  can hold t wo diffe rent 
+One example of this “biological programming” involves inducing a complete eye outside the
+head. Recall the frog embryo’s electric face map has a distinct voltage signature where the eye
+will form. We asked: if we reproduce that voltage signature in a different location, will cells
+build an eye there? To test this, we injected frog embryos with mRNA encoding certain ion
+channels that produce the same localized voltage seen in normal eye-forming cells. By targeting
+this injection to cells fated to become part of the gut, we were able to create a little patch of gut
+cells that had an “eye” voltage profile. Incredibly, those cells proceeded to form a functional
+ectopic eye – complete with lens, retina, optic nerve – in the middle of the gut tissue. The gut
+cells, which would never normally make eye tissues, followed the bioelectric instruction to build
+an eye. This experiment demonstrates a few crucial points. **(A)** The bioelectric pattern is indeed
+instructive, not just a reflection of ongoing gene activity – by setting a new pattern, we altered
+cell fate and anatomy. **(B)** The control is very high-level and modular: we did not micromanage
+any of the details (we did not specify lens vs. cornea genes, or direct the optic nerve wiring). All
+we did was trigger a subroutine call – essentially “build an eye here” – and the cells executed the
+entire eye-building program downstream. This reveals that cells have many latent subroutines
+(like “build eye,” “build limb”) that can be called into action by the right cues, without needing
+to rewrite the genome or provide step-by-step instructions. **(C)** The system can adjust to make
+the result anatomically correct. In cases where only a very small number of cells were initially
+triggered (too few to form a complete eye on their own), those cells **recruited their neighbors**
+to contribute, until enough tissue was assembled to form a proper eye. The cells collectively
+knew that an eye requires a certain minimum size and complexity, and they cooperated to
+achieve that, pulling in uninjected cells to help. We did not have to teach them this; it is an
+intrinsic capability of the cell collective.
 
- 
-a nd thi s latent 
+Another dramatic example comes from manipulating the body plan of flatworms (planaria).
+Normally, planaria have one head at the top and a tail at the end. If you cut a planarian in half,
+each piece regenerates exactly the missing parts: the head piece regrows a tail and the tail piece
+regrows a head, yielding two one-headed worms. This implies the tissues know “one head, one
+tail” is the correct pattern. We found that this pattern is stored in the worm’s bioelectric network.
+By using drugs to change ion channel states, we could **rewrite the electrical pattern** to one that
+corresponds to “two heads”. At first, nothing visibly changed – the treated worm still looked
+normal (one head) and even its gene expression for head-tail polarity was unchanged. However,
+the worm now carried a latent 2-head pattern internally. When we then amputated the worm, the cells referred to their internal pattern memory and regenerated what they “believed” a correct
+worm should be – and produced a two-headed worm (one head at each end). This shows that the
+bioelectric pattern was acting as a morphological memory guiding regeneration. The normal
+worm retained a counterfactual idea (“I should have two heads”) that only manifested when
+regeneration was triggered.
 
-a tail does not belong on the side of the bod y and act t o eli mi nate it b y con verting it  to a lim b. In 
-each case, cell ular netwo rks store a r epre
-s entation of the corr ect st ructu re a nd compare curr ent 
- 
-acti ons t o achieve it .
- 
-In sum ma r y, cell s and ti s sues are 
-ag en ts navi gatin g sp ace tow ard  a goal
-.Embr yo gen
-esis  and 
-re gene rati on ar e not j ust m echanic al process es but  
-inf ormati onal pr ocesses
-, wherein c ell s 
-comm unicate, make d eci sions , and perform acti ons t o mi nim iz e error rel ati ve to a species
--
-specific ide al form. Our bodies are buil t b y 
-coll ec tion s of  
-microscop ic pr ob lem
--
-solv ers
- 
+Furthermore, this induced change is long-lasting and heritable at the tissue level. The two-headed
+worm, if cut again, will regenerate two-headed offspring repeatedly – the pattern **persists
+indefinitely** until we reset it back to normal. All the while, the worm’s genome is unchanged;
+these are wild-type planaria with a rewritten pattern memory. We also showed we can toggle it
+back to one-head when desired, proving it is a stable yet reversible memory state. Essentially, the
+tissue has a **rewritable memory store** for the anatomical layout, analogous to RAM in a
+computer (but implemented in bioelectric circuits). It meets criteria for memory: long-term
+stability, discrete representational states (one head vs two heads), conditional recall (expressed
+upon injury), and rewritability.
 
+Our interventions can even coax cells to build anatomies belonging to other species. By altering
+the bioelectric signals during planarian regeneration, we induced one species of flatworm to
+grow a head shape appropriate to a different species – for example, round heads or narrow heads
+that normally only occur in other worms with divergent genomes. Remarkably, the brains inside
+those heads and the distribution of stem cells also corresponded to the target species’ pattern. In
+other words, without any genomic changes, a worm with species A DNA formed the morphology
+of species B. We can even generate forms that don’t exist in nature – entirely novel shapes like
+spiky forms or cylindrical worms – by navigating the cells through novel paths in morphospace.
+The cellular hardware (the genome and cell machinery of species A) is clearly capable of many
+outcomes. The specific outcome realized depends on the bioelectric **patterning instructions** that
+guide the collective of cells. Evolution naturally biases a default pattern (one head of species-
+typical shape), but we see that the latent capacity is much broader. The electrical network in
+effect chooses among different **attractor states** in the anatomical possibility space – some
+corresponding to known species and some to never-before-seen organisms. By learning to
+communicate with this network, we gain the ability to **direct the self-assembly of living tissue**
+toward desired outcomes, from regenerative repair (e.g. encouraging a limb to regrow) to
+creating synthetic organisms with novel anatomies.
 
-empl o yin g fe edba ck loops  and st ored tar get st ates.  This perspecti ve of cell u lar int ell igen ce 
-refr ames dev elopm ent as  a kind of coll ecti ve co gn it ion. Nex t, we ex ami nehow cell s 
-comm unicate to coordina te these compl ex  projects , fo
-cusing on bio electric signals as the 
-langu a ge of cell ular coll e cti ves.
- 
- 
- 
-One of the prima r y wa ys cell s coordinate th eir acti vit y and r emember t ar get  shapes is  through 
-b ioelectric sign als
-: flows of ions that creat e volt a ge gradients 
-a cross c ell  membranes. W hil e 
-neurons use el ectric al i mpul ses to p rocess i nforma ti on in t he brain, i t t urns out that non
--
-neural 
-cell s throughout t he bod y also us e electri cal pot ent ials t o comm unicate and organiz e structure. In 
-fact, t he use o f bioelect ric n
-etworks is  
-an cient
- 
-
- 
-it  arose lon g be fore sp ecial iz ed brains, d ati ng 
-back to ea rl y sin gle
--
-cell e d organism s and bacte ria l communi ti es. Ever y cel l i n the bod y has ion 
-channels t hat r e gulate it s vol tage, and nei ghborin g cell s are o ften conn ected b y junctions  
-that 
-all ow curr ents t o flow be tween them. Thus, all  c ell s form electric al networ ks remi niscent of 
-neural netwo rks, just  slower in ti mescale.
- 
-W e can draw an an alog y between the b rain and th e rest of the bod y: 
-
-n etw ork  con trols b eh avior
- 
-(muscle movements t hrough 3 D spac e), wh ere as the 
- 
-elect rical n etw ork  con tr ols an atomy
- 
-( cell  move ments and growth throu gh morphospace ). Both 
-s ystems st ore info rmati on and make de cisi ons vi a electric al patterns. Evolu ti onaril y, what l ikel y 
-happened is
- 
-that the an ci ent bi oelectric al m achine r y us ed for anatom ical co ntrol was co
--
-opted 
-and elabor ated to form f a st
--
-thi nking brains for b eh avioral control. The fund amental t rick is t he 
-same: use volt a ge
--
-b ased comm unicati on as a 
-cog n itive glu e
- 
-to bi nd indi vidual
- 
-cell s int o a 
-unified problem
--
-solvi ng s ystem. J ust as neurons share el ectric al si gn als t o repres ent go als (li ke 
-finding food ) and a chiev e them b y movi n g the bo d y, all  c ell s can sha re el e ctrical si gnals t o 
- 
- 
-chan gin g gene ex pressi on, or other growth
--
-relate d acti ons.
- 
-To understand these bio e lectric conv ersati ons, m y lab and others hav e dev e loped techniques to 
-read  an d  w rite the bi oelectri c cod e
- 
-that c ell s use . On the rea
-din g side, we use volt age
--
-sensit ive 
-d yes and fluor escen ce im agin g to vi suali z e the ele ctrical st ate of cell s in v ivo. For ex ampl e, we 
-can bathe an e arl y fro g e mbr yo in a volta ge
--
-sensit ive d ye  and film  the d yna mi c volt age p att erns 
-across it s cell s. This  pro
-
-
- 
-a li ter al i ll umi nati on of which 
-cell s are mor e ele ctricall y ch ar ged (depola riz ed) or less (h yperpol ariz ed) a t an y given tim e. 
-W hen we do thi s, we see that well  befor e anatom ic al featur es form, t he re a r e 
-elec trical 
-p rep attern s
- 
-that anti cipa te the final l a yout. In a fr og embr yo , for inst anc e, we can d etect an 
-
- 
-patt e rn: a  specific a rran gement of volt age re gions t hat predi cts where th e fa cial 
-featur es will  form. A clu ster of cell s with a p artic ular volt ag
-e marks t he fu ture e ye, another 
-re gion m arks the futur e mout h, and so on 
-
- 
-appea ring 
-b ef ore
- 
-the genes an d ti ssues visi bl y c reat e 
-those organs. Disrupti n g thi s bi oelectric patt ern ca n lead to m alformed f ac e s, ind icati ng that the 
-patt ern is not j ust a passi v
-e marke r but a 
-f u n ctional i n stru ctive sign al
- 
-guidi ng dev elopm ent. 
-Voltage im a ging also rev eals t hat groups of c ell s ( or even sep arat e embr yos  in prox imit y) 
-comm unicate ele ctricall y. For ex ampl e, if one embr yo in a clust er is inj ure d, an electri cal i njur y 
-s
-ignal prop a gates to nei ghboring emb r yos, alerti n g them to t he dist urban ce . This s hows 
-
-
-bioelectric si gnali n g can operate on a 
-tissu e an d  w h ole
--
-organ ism level
-, c oordinati ng r esponses 
-across dist anc es.
- 
-R eading the bio electric st ate is onl y hal f the stor y 
-
- 
-we
- 
-also want t o 
-r ew rite those patte rn s
- 
-to 
-see if we can dir ect c ell s to b uil d particular structu res. Importantl y, we do n ot use gross electric al 
-shocks or ex ternal fields;  inst ead, we a ct t hrou gh the same molecula r mech anism s cell s use. B y 
-manipulating ion c
-hann els (through d ru gs, geneti c tool s, or light
--
-acti vated c hannels i n 
-optogen eti cs), we can set  re gions o f tiss ue to a des ired volt age state or alt er the connecti vit y of 
-the electric al network. In  essence, we ha ck the el e ctrical communi cati on in terfa ce of 
-the cell s. 
-
-W e can 
-tell
- 
-
-cues for those out comes, without  alt ering an y gene s di r
-ectl y.
- 
-
-
-will  form. W e asked: i f we rep roduce th at vol tage signatu re in a dif fe
-r ent l ocati on, will  cell s 
-buil d an e ye  ther e?  To test t his, we inj ected fro g e mbr yos wit h mR NA en c oding c ertain i on 
-channels t hat produ ce the  same locali z ed volt age s een in normal e ye
--
-fo rming c ell s. B y tar geti ng 
-thi s inj ecti on to cell s fated to become part
- 
-o f the gut, we wer e able to c re ate  a li tt le patch of gut 
-
-ectopi c ey e
- 
-
- 
-compl ete with l ens, reti na, opti c ne rve 
-
- 
-in t he mi ddle of the  gut t iss ue. The gut 
-cell s
-, which would neve r  normall y mak e e ye ti ssu es, followed the bioele ctr ic inst ructi on to bui ld 
-an e ye. This ex periment demons trates a f ew c ruci al poi nts. 
-(A)
- 
-The bioele ctric patt ern is inde ed 
-in stru ctive
-, not j ust a ref lecti on of ongoin g gene a cti vit y 
-
- 
-b y s
-ett ing a new  patt ern, we alt ered 
-cell  fate and anatom y. 
-(B )
- 
-The control i s ver y hi gh
--
-level and modular: w e d id 
-n ot
- 
-mi cromana ge 
-an y o f the details (w e did  not s pecif y lens vs. corn ea gen es, or dire ct t he op ti c nerve wirin g). All 
-we did was tri gge r a subr out
-ine call  
-
- 
-
-
- 
-and the cell s ex ecuted the 
-enti re e ye
--
-buil ding pro gr am downst ream. Thi s rev eals t hat cell s hav e man y latent sub routines 
- 
-needing 
-to rewrit e the genome or provide step
--
-by
--
-step inst r ucti ons. 
-(C)
- 
-The s ystem can adjust  to m ake 
-the result  anatom icall y c orrect. In cas es wher e on l y a v er y small  number o f cell s wer e ini ti all y 
-trigge red (too f ew to for m a compl ete e ye on their own), 
-those c ell s 
-rec ru ited  their n eigh b ors
- 
-to contribut e, unti l enough tiss ue was assembled t o form a prop er e ye . The cell s coll ecti vel y 
-knew that an e ye  requi res  a cert ain m ini mum  siz e and compl ex it y, and the y cooperat ed to 
-achieve th at, pul li ng in uni njected 
-cell s to h elp. W e did not  have to t ea ch them thi s; i t i s an 
-int rinsic capabil it y of th e  cell  coll ecti ve.
- 
-Another dram ati c ex ampl e comes from manipul ati ng the bod y plan o f flatw orms (planaria ). 
-Normall y, plan aria h ave one head at t he top and a tail at the e
-nd. If you cut a planarian in h alf, 
-each pie ce r e gen erates ex actl y th e mi ssi ng parts: t he head pie ce r e grows a tail and the tail pi ece 
-re grows a head, yi eldi ng two one
--
-
- 
- 
- 
-B y usi ng d ru gs to chan ge  ion channel st ates, w e co uld 
-rew rite the el ect rica l p attern
- 
-to one that 
-
-
- 
-the tr eated worm st il l
- 
-looked 
-normal (one he ad) and ev en it s gen e ex pressi on for  head
--
-tail pol arit y w as unchan ged. Ho weve r, 
-the worm now c arried a latent 2
--
-head p att ern inter nall y. W hen we th en am putated the worm, the 
-
-
-cell s ref err ed to t heir int e rnal pattern memor y and re gene ra
-
-worm sho uld be 
-
- 
-and pr oduced a 
-tw o
--
-h ead ed  w or m
- 
-(one h ead at ea ch en d). This s hows that the 
-bioelectric patt e rn was ac ti ng as a 
-morp h ologi cal me mory
- 
-guidi n g r e gene r ati on. The normal 
- 
- 
-
-re gene rati on was tri ggere d.
- 
-Furthermo re, thi s indu ce d chan ge is l on g
--
-lastin g a nd heritable at t he ti ssue level. The two
--
-h eaded 
-worm, i f cut a gain, wil l r egener ate two
--
-h ead ed off spring r epeat edl y 
-
- 
-th e p att
-ern 
-p ersis ts 
-in d ef in itely
- 
-
-these ar e wild
--
-t yp e plana ria with a re writ ten patt er n memor y. W e also s how ed we c an to ggle it 
-back to one
--
-h ead wh en d esired, provin g it  is a sta ble y
-et reve rsible memor y state. Ess enti all y, the 
-ti ssue has a 
-rew ritab le me mory s tore
- 
-for the an atom ical l a yo ut, analo go us t o R AM in a 
-comput er (but i mpl emented in bi oelectric circuit s).  It m e ets crit eria for mem or y: l on g
--
-te rm 
-stabili t y, disc rete repr ese ntatio
-nal st ates (one he ad  vs t wo heads), condit ion al rec all  (ex pressed 
-upon inj ur y), and re writ a bil it y.
- 
-Our int erventi ons can ev en coax  cell s to b uil d ana tom ies belongin g to ot he r species. B y alt erin g 
-the bioelectric si gnals du ring plan arian r e gen erati on, we in
-duced on e speci es of flatworm t o 
-gro w a he ad shape appro priate to a diff erent spe ci es 
-
- 
-for ex ampl e, round h eads or na rrow h eads 
-that normall y onl y oc cur in ot her worms with di vergent genomes. R ema rka bl y, the br ains i nside 
-those heads and the dist ri buti on 
-
-other words, wit hout an y genomi c chan ges, a wor m wit h species A DNA f ormed the morpholo g y 
-
-
- 
-enti rely novel sh apes li ke 
-sp
-ik y forms or c yli ndrica l worms 
-
- 
-b y navi gati ng the cell s throu gh novel p aths i n morphospace. 
-The cell ular h ardw are (the genome and cell  machi ner y of spe cies A) is cl ea rl y c apable o f man y 
-outcomes. The speci fic o utcome reali z ed dep ends on the bioelectric 
-pa
-tt er n in g in stru ction s
- 
-that 
-guide the coll ecti ve of ce ll s. Evolut ion naturall y bi ases a de fault  patt ern (on e head of sp ecies
--
-t ypical shap e), but w e se e that the latent cap acit y is m uch broader. Th e ele ctrical netwo rk in 
-effe ct chooses among dif ferent 
-at tra c
-tor sta tes
- 
-in  the anatom ical poss ibi li ty spa ce 
-
- 
-some 
-correspondi n g to known species and som e to nev e r
--
-befo re
--
-s een or ganism s. B y lea rning to 
-comm unicate wit h thi s network, we gain t he abil it y to 
-d irec t th e self
--
-asse mb ly of  li vin g tissu e
- 
-toward desire d outc
-omes , from re gen er ati ve rep air  (e. g. encou ra gin g a li mb  to regrow) to 
-creati n g s ynthetic or gani sms  with novel anatom ies.
- 
-These ex ampl es il lust rate that cell ular coll e cti ves a re not m ere robots of the genom e; t he y have 
-their own informati onal l a ye r that c an
- 
-be p ro gram med. The genome p rovides the parts and 
-default  wirin g, but t he el ectric ci rcuit  formed b y c ell s can st ore ph ysiol o gic al 
-setpoi n ts
- 
-and 
-large
--
-sc ale 
-ac tion  p lan s
- 
-
--
-and
--
-
-can tap into t h
-is l a ye r to control growth and fo rm wit hout gene edit ing, b y speaking th e 
-bioelectric lan gu a ge. Thi s has huge im pli cati ons for re gen erati ve m edicine (e. g., inducin g ti ssues 
-to regrow or repai r), birt h defect corr ecti on, and e ven bioen gineerin g o f ne w forms
- 
-of life. But i t 
-also raises de eper qu esti ons:  W h y are li vin g ti ssues able to do thi s in t he first pl ace? W hat does it  
-sa y about t he natur e of bi ological i nfo rmati on and the origin of compl ex  shape?  To answer that, 
-we need to consi der the f undamental princ
-ipl es th at m ake the c ell ular coll e cti ve so a genti al and 
+These examples illustrate that cellular collectives are not mere robots of the genome; they have
+their own informational layer that can be programmed. The genome provides the parts and
+default wiring, but the electric circuit formed by cells can store physiological **setpoints** and
+large-scale **action plans** (like “construct one head of such-and-such shape”). We as bioengineers
+can tap into this layer to control growth and form without gene editing, by speaking the
+bioelectric language. This has huge implications for regenerative medicine (e.g., inducing tissues
+to regrow or repair), birth defect correction, and even bioengineering of new forms of life. But it
+also raises deeper questions: Why are living tissues able to do this in the first place? What does it
+say about the nature of biological information and the origin of complex shape? To answer that,
+we need to consider the fundamental principles that make the cellular collective so agential and
 plastic.
- 
 
+### Philosophy of Cognition
 
- 
- 
-Livi n g s ystems t au ght us that evolut ion does not bui ld st ati c sol uti ons 
+Living systems taught us that evolution does not build static solutions – it builds agential
+material that can solve problems on the fly. Unlike human-designed machines, which operate on
+reliable hardware with narrow parameters, biology thrives with unreliable components and
+unpredictable environments. A developing embryo cannot guarantee exactly how many cells it
+will have, what the precise nutrient conditions are, or that every gene is perfectly error-free.
+Thus, life leans into **robust, goal-directed plasticity** as a strategy. It makes collections of cells that can adjust, compensate, and keep working toward the anatomical goal even when
+perturbations occur. In essence, evolution trained cells to be little problem-solvers because it had
+to – there is too much variability in the real world for a rigid program to succeed. This stands in
+contrast to how we design computers, where we enforce exacting reliability in circuits and code.
+Biology’s **computing substrate is noisy and variable**, so its architectures emphasize continual,
+creative adjustment rather than fixed algorithms.
 
- 
-it buil ds 
-agen tial 
-ma terial
- 
-that c an sol ve p roblems on  the fl y. Unlike human
--
-desi gned m achi ne
-s, which oper ate on 
-reli able ha rdwar e with na rrow pa ramete rs, biolog y thrives with unreli able c omponents and 
-unpredictable environme nts. A developi ng embr yo cannot guar antee ex actl y how man y cell s it  
-will  have, what t he pr eci se nutrient condit ions are , or 
-that ever y gene is pe r fectl y er ror
--
-fre e. 
-Thus, li fe leans i nto 
-rob u st, goal
--
-d irected  p lasticity
- 
-as a str ate g y. It m ak es coll ecti ons of c ell s 
-that can adjust , compens ate, and ke ep workin g to ward the an atom ical goal  even when 
-perturbati ons occu r. In es sence,
- 
-evolut ion t rain ed c ell s to b e li tt le problem
--
-solvers bec ause it  had 
-to 
+A consequence is that biological systems do not **overfit to past environments** – they are, by
+necessity, generalists capable of novel responses. For instance, no salamander ever evolved
+specifically to handle “tail grafted to side,” yet the cells could address that scenario anyway (by
+generating a limb). Evolution provided cells with a repertoire of subroutines and the autonomy to
+deploy them as needed, rather than a rigid script. We have termed this perspective
+**polycomputing**: in living systems, there isn’t a single canonical interpretation of information.
+Instead, multiple layers of the system interpret signals in their own context. Different
+“observers” (molecules, cells, organs) simultaneously make sense of the same physical events in
+different ways. What a signal “means” is context-dependent and can be repurposed. For example,
+a transient calcium ion spike might mean one thing to a local gene network (perhaps “activate
+wound repair genes”) and something else to the organism-level system (perhaps “this region is
+building an eye”). Both meanings can coexist. The history or origin of a signal is less important
+than the current use that the collective intelligence finds for it. In biology, **only the future (the goal state) matters** – past “intent” of a signal is irrelevant if the system can reinterpret it toward current needs. We see this in metamorphosis: the stored memories from a caterpillar are partially repurposed by the butterfly that emerges, even though the butterfly has a new body and lifestyle. The information was not kept for nostalgia – it was translated into a form useful for the new organism (e.g., a visual cue that meant “food source” in the caterpillar’s context might be carried over as an abstract association that the butterfly can link to its own feeding strategy). The
+caterpillar’s brain basically dissolves in the pupal stage, yet some memories persist in the rebuilt
+butterfly brain. This implies an impressive transfer learning: the biological system didn’t just
+save raw data, it generalized it to a new hardware and behavioral context. The persistence and
+remapping of memory through metamorphosis underscores how life prioritizes useful continuity
+of goals over exact preservation of form.
 
- 
-there is t oo much var iabili t y in t he real wo rld for a ri gid pro gram t o succe ed. This s tands in 
-contrast t o how we d esign comput ers, whe re w e e nforce ex acti ng r eli abil it y in cir cuit s 
-and code. 
- 
-co mp u tin g su b strate is n oisy a n d  variab le
-, so i ts archit ectures emphasiz e conti nual, 
-creati ve adjust ment rathe r than fix ed algorithm s.
- 
-A consequen ce is t hat bi ological s ystems do not  
-o verf it to p ast en vironmen ts
- 
+Such capabilities push us to expand our definition of embodiment and cognition. A system
+doesn’t need a traditional “body” to have an embodiment – it only needs to have a space of states
+it can navigate and sensors/actions to move in that space. A machine learning program, for
+instance, navigating a space of possible solutions has an embodiment in that abstract space.
+Similarly, an organoid (a tiny lab-grown collection of cells) with no moving limbs is
+nevertheless embodied in the space of gene expression and metabolism. We normally call something “embodied” if it moves in 3D space, but from the perspective of intelligence, embodiment is the closed-loop interaction with any set of states. This broad view erases the sharp line between “living” and “machine” intelligence. Even software agents have some form of
+embodiment (in virtual or data spaces), and conversely, living cells have “bodies” in biochemical
+state space that they regulate.
+Looking ahead, the distinction between evolved organisms and designed machines will further
+blur. We already can **mix and match evolved and engineered components** at multiple scales:
+genetically modified organisms, biohybrid devices, cyborg tissues, etc. As we introduce more
+designed elements into living systems (and vice versa), we will create chimeric beings that
+challenge our categories. What do we call a culture of human brain cells connected to a silicon
+AI? Or an embryo with some computer-designed organs? Traditional metrics (like percent of
+DNA from humans) will fail – we will get entities that are part human, part machine, part
+something entirely new. We may need to abandon the idea of a clear boundary of “humanness”
+or even “life.” Instead, we will face a **spectrum of cognitive agents**, from modified animals to
+intelligent organoids to self-assembling xenobots, all the way to purely digital intelligences.
 
- 
-the y ar e, b y 
-necessi t y
-, gene rali sts  cap able of novel r esponses. For instanc e, no salaman der eve r evolved 
+To navigate this future, we must develop a new ethics and cognition framework. We will need
+the tools to **predict the behavior and capacities of novel creatures** that have no evolutionary
+precedent. Currently, biology extrapolates an organism’s likely behavior from its closest
+relatives on the tree of life. But when a truly novel composite agent comes along (one with no
+close relatives), how will we know its drives or understanding? We need to identify invariant
+principles of intelligence that apply to any medium. The study of the “latent space” of possible
+body-minds can help here. Just as the mathematical function in a fractal can generate endless
+complex images (patterns not explicitly drawn by anyone but inherent in the math), the rules of
+cells and evolution harbor a latent space of possible forms and behaviors. Our work with planaria
+and xenobots suggests that life’s potential forms can be systematically explored. We use
+**synthetic organisms like xenobots and anthrobots as tools to probe this space**. Xenobots, for
+example, are clusters of frog skin cells that we assembled into novel shapes (little living
+spheres). These cell clusters, never seen in nature, spontaneously behaved like miniature
+organisms: they swam around, cooperated, and even exhibited **kinematic self-replication** –
+gathering loose cells to form a new spheroid that matured into another mobile xenobot. This
+behavior was not programmed by us or directly selected by evolution; it emerged from the
+interaction of cells in a new context. The xenobots repeatedly built next-generation copies of
+themselves, showing that even basic living cells can achieve something as conceptually
+advanced as self-replication when placed in appropriate circumstances. Their **motives and skills were latent** in the frog genome (which normally would never have these cells doing such a task).
+This reinforces the idea that evolution often produces components with general competencies
+that can be reactivated in novel contexts.
 
-gen erati n g a li mb). Evolu ti on provided cell s with a  repertoir e of subrout
-ines  and the autonom y to 
-deplo y them as need ed, r ather than a ri gid script . W e have termed this  pers pecti ve 
-p olycomp u tin g
+It may be that the space of all possible anatomies and behaviors – a sort of **Platonic space of biological forms** – contains not only shapes, but perhaps even templates for minds. The
+conjecture here (admittedly speculative) is that some patterns of information processing, which
+we would recognize as cognition or intelligence, are natural attractors in this space. Life in the
+universe could “discover” these patterns by evolving into them, much as mathematicians
+discover eternal truths rather than inventing them. If so, truly novel beings might still fall into recognizable categories of mind (just as our planar cells fell into the category of “build an eye”
+when given the right trigger, or xenobot cells fell into “replicator” behavior). Our job is to
+prepare for a world populated by an **ecosystem of diverse intelligences**, only some of which
+came from traditional evolution. We must develop a **“cognitive spectrum”** view, akin to the
+electromagnetic spectrum: just as infrared, visible light, and X-rays are all electromagnetic
+waves differing only in frequency, so too might machine learning agents, organoid brains, and
+animal minds all be points on a continuum of mind. Our intuitions (our native perceptions of
+other minds) are tuned for human-like agents; they will not suffice. We will need **augmentative tools (AI “adapters”) to interpret and communicate with unfamiliar intelligences**. In the
+same way microscopes and sensors let us perceive phenomena our eyes cannot, AI may help
+translate the “language” or behavior of a synthetic organism into terms we can understand, and
+vice versa.
 
-Inste ad, mul ti ple la ye rs o f the s yst em i nterpret si g
-nals i n their own contex t. Differ ent 
- 
- 
--
-dependent and can b e rep urposed. Fo r ex ampl e, 
-a transient c alcium i on spi k
+Finally, it’s important to note that nothing mystic restricts these principles to biological
+hardware. We found even simple computer algorithms (like sorting algorithms) can show
+emergent “side quests” – behaviors not explicitly coded, analogous to how cells have goals
+beyond genetic instructions. For example, while a sorting algorithm is busy ordering a list of
+numbers, it might incidentally exhibit patterns such as clustering certain items temporarily or
+delaying certain moves – patterns that look like a rudimentary strategy (like a form of delayed
+gratification) even though the code doesn’t explicitly demand it. This hints that whenever there is
+a process working toward a goal (even a mathematical one), there can be properties at the system
+level that are not obvious from the low-level rules. In other words, **competencies emerge** at
+many levels, and our formal models (whether of Turing machines or biochemical networks) are
+always just approximations. The map is not the territory: our theoretical model of a Turing
+machine is not the machine itself, just as our genomic description of an organism is not the
+organism. Minds and their capabilities are not fully captured by our simplified models of neurons
+or circuits. Therefore, as we venture into creating and interacting with novel agents, we should
+remain humble about the limits of our understanding. Life (and mind) will likely surprise us with
+forms and functions that challenge our assumptions.
 
-
--
- 
-
-t 
-than the curr ent use that t he coll ecti ve int ell igenc e  finds for it. In biol og y, 
-o n ly th e f u ture (th e 
-goal s tate) ma tte rs
- 
-
- 
-
-current n eeds. W e see thi s in m etamorphosi s: t he st
-ored memories from a c aterpil lar a re pa rtiall y 
-repurposed b y th e butt erf l y that eme r ges, ev en tho ugh the butter fl y has a n e w bod y and li fest yl e. 
-The information was not  kept for nost al gia 
-
- 
-it  wa s translated int o a form u seful for the n ew 
-organism  (e. g., a
- 
-
-over as an abstra ct associ ati on that the butterfl y ca n li nk to i ts own feeding strate g y). The 
- 
-ersist  in t he rebuil t 
-butt erfl y b rain. Thi s im pli es an im pressi ve 
-tran sf e r learn in g
- 
-save ra w data, it 
-gen e rali zed
- 
-it  to a new hard war e and behavior al contex t. The persist enc e and 
-remappin g of memor y th rough met amorphosis  
-underscor es how li fe prio ritiz es useful continui t y 
-of go als over ex act prese rvati on of form.
- 
-S uch capabil it ies push us t o ex pand our definiti on of embodi ment and co gn it ion. A s yst em 
-
-
- 
-it  onl y n eeds t o
- 
-have a spa ce o f states 
-it  can navi gate an d senso rs/acti ons t o move in that space. A ma chine le arni ng pro gram, for 
-inst ance, navi gati n g a sp ace of possi ble solut ions h as an embodi ment in t hat abstract spa ce. 
-S im il arl y, an or ganoid ( a  ti n y lab
--
-gro wn coll ect
-io n of cell s) wit h no movi ng li mbs i s 
-nevertheless embodi ed in t he space o f gene ex pressi on and metaboli sm. W e normall y c all  
-
-
- 
-e mb od imen t is the close d
--
-loop  in teraction
- 
-w
-it h an y s et of states. This  bro ad view er ases the 
-
-
-state space t
-h at t he y re gu late.
- 
-Lookin g ah ead, the dist in cti on between evolved or ganism s and d esign ed machines wil l furthe r 
-blur. W e alread y can 
-mix  an d  match  evolved an d  en gin eered  co mp on en t s
- 
-at m ult ipl e scales: 
-gen eti call y modi fied or ganism s, bi oh ybrid devic e s, c ybo r
-g ti ssues, etc. As we int roduce mor e 
-designed elements i nto l ivi ng s ystems (and vic e v ersa), we will  cr eate chim eric bein gs that 
-chall en ge our cate go ries. W hat do we call  a cult ur e of human br ain cell s co nnected to a sil icon 
-A I?  Or an embr yo with s ome comp
-uter
--
-d esign ed organs?  Tradit ional metrics (like per cent of 
-DNA from humans) will  fail  
-
- 
-we will  get entit ies that are pa rt human, part machine, part 
-
-
-Inst ead, w e will  face a 
-sp ect ru m of  cogn itive agen ts
-, from modi fied anim als t o 
-int ell igent or ganoids  to s elf
--
-assembli n g x enobots , all  the wa y to purel y di git al i ntelli gences.
- 
-To navigate thi s future, we must  develop a ne w e thi cs and co gnit ion frame work. W e
- 
-will  need 
-the tools  to 
-p red ict the behavi or an d  cap acities of  n ovel creatures
- 
-that h ave no evolut ionar y 
- 
-relatives on the tre e of lif e. But wh en a trul y novel  compos i
-te agent comes along (on e with no 
-close relatives ), how will  we know its  drives or un derstandin g? W e need to i denti f y inva riant 
-
-bod y
--
-mi nds c an help her e. J ust 
-as the mathemati cal functi on in a fr actal c a n gen erat e endless 
-compl ex  im ages (patt e rn s not  ex pli citl y d rawn b y an yon e but i nherent i n th e math), the rules o f 
-cell s and evolut ion harbo r a latent spa ce of possi bl e forms and b ehaviors. O ur work wit h plana ria
- 
-
-syn thetic organ isms li k e xen ob ots and  an throbots as tools to p rob e thi s sp ace
-. Xenobots
-, for 
-ex ampl e, are clust ers o f f rog ski n c ell s that we ass embl ed int o novel shapes  (lit tl e li ving 
-spheres). Th ese c ell  clust ers, neve r seen in n ature, spont aneousl y b ehaved li ke mi niature 
-organism s: t he y sw am ar ound, cooperat ed, and ev en ex hibi ted 
-k in emati
-c s elf
--
-rep li cation
- 
-
- 
-gath erin g loose c ell s to form a new sphe roid that matured int o another mo bil e x enobot. Thi s 
-behavior was not  p ro gra mm ed b y us or dir ectl y s elected b y evolut ion;  it  emerged from t he 
-int eracti on of c ell s in a new contex t. The x enobots  re
-peat edl y buil t nex t
--
-ge nerati on copies of 
-themselves, showing that  even basic livi n g cell s c an achiev e som ethi ng as conceptuall y 
-advanc ed as self
--
-repli c ati on when plac ed in appro priate cir cumst ances. Th eir 
-motives an d  sk il ls 
-w ere laten t
- 
-in t he fro g genome (
-which no rmall y would never h ave these c ell s doi ng such a t ask). 
-This reinforc es the idea t hat evoluti on often produ ces components wit h gen eral compet encies 
-that can be r ea cti vated in  novel contex ts.
- 
-It m a y b e that the spa ce o f all  possi ble anatom ies a nd be
-haviors 
-
- 
-a sort o f 
-Platon ic space of  
-b iol ogicalf orms
- 
-
- 
-cont a ins no t onl y sh apes, but  p erhaps ev en templates fo r minds. The 
-conjecture h er e (admi tt ed l y specul ati ve) is that so me patt erns of inform ati on processi n g, which 
-we would re co gniz e as c ognit ion or 
-int ell igen ce, are natu ral attra ctors in t his s pace. Life in t he 
-
-discover ete rnal t ruths rat her than inventin g them. If  so, t rul y nov el bein gs mi ght st il l fall  int o 
-
-
-reco g
-
- 
-prepar e for a world popul ated b y an 
-e cosyste m of  d iverse in tell igen
-ces
-, on l y som e of whi ch 
-came f rom tradit ional ev olut ion. W e must  develop a 
-
- 
-view, akin t o the 
-electroma gn eti c spectru m:  just  as infrared, vis ibl e li ght, and X
--
-ra ys are all  electroma gn eti c 
-waves di ff erin g onl y in fr equenc y, so t oo mi ght 
-m achine le arnin g a gents, o rganoid brains, and 
-anim al m inds all  be point s on a conti nuum of mi nd. Our int uit ions (our nati ve perc epti ons of 
-other mi nds) are tun ed fo r human
--
-li ke a gents;  the y will  not s uffice. W e will  need 
-au g men tativ e 
-
-to  in terp ret and  co mmu n icate w ith  u n f amil iar in tell igences
-. In the 
-same wa y mi cros copes a nd sensors let us perc eive  phenomena our e yes c an not, A I m a y help 
-
-vice v
-ers a.
- 
-
-hardwa re. W e found e ve n si mpl e comput er al gori thm s (like sorti ng al gorit hms) can show 
-
-
- 
-behaviors not ex pli cit l y c oded, analo gous t o h
-ow c ell s have goals 
-be yond geneti c inst ructi o ns. For ex ampl e, while a sorting al gorithm  is bu s y orderin g a li st of 
-numbers, it  mi ght i ncide ntall y ex hibi t patterns such as clust erin g c ertain i t ems t emporaril y or 
-dela yin g cert ain m oves 
-
- 
-patt erns that l ook l
-ike a r udim entar y str ate g y (like  a form of del a yed 
-
-a process workin g towar d a go al (ev en a mathem ati cal one), the re c an be properties at t he s ystem 
-level t h
-at are not obvi ous  from t he low
--
-level rules.  In othe r words, 
-co mp et e n cies e me rge
- 
-at 
-man y lev els, and our fo r mal models (whether o f Turing ma chines or bioc hemi cal networks) ar e 
-alwa ys jus t approx im ati ons. The map is not  the ter ritor y: our theo reti c al m odel 
-of a Turin g 
-machine is not  the machi ne it self, just  as our geno mi c descriptio n of an or ganism  is no t t he 
-organism . Min ds and their capabil it ies ar e not full y c aptured b y ou r simpl ified models of neurons 
-or circuit s. Ther efor e, as we venture int o c re ati ng a
-nd int eracti n g with nove l agents, we shoul d 
-remain humbl e about t he li mi ts of our understanding. Lif e (and mi nd) wil l l ikel y surp rise us wit h 
-forms and functi ons t hat chall en ge our assum pti ons.
- 
-In  con clu sion
-,the unreli abil it y of livi ng h ardw are  forced evo
-lut ion t o drive an 
-in tell igence 
-ratch et
- 
-
- 
-a rise of  proble m
--
-solvi ng cap acit y embo died in cell s and ti ssues to ensure or ganism s 
-hit  their developm ental a nd survival t ar gets. W e, a s engine ers of n ew bio
--
-c ognit ive s ystems, ar e 
-not so  much inventi ng int ell igen
-ce as w e a re findin g w a ys to 
-in terf ace w ith  existin g d yn amics
- 
-and nudge them toward d esired outcomes. W hethe r in a li ving embr yo o r a comput er simul ati on, 
-int ell igence emer ges whe n a s ystem can pursu e go als i n it s st ate space b y fl ex ibl e means. B y 
-understa
-ndin g cell s as a gents and morpho genesis  as their coll ecti ve b ehavi or, we gain t he abil it y 
-to progr am bi olog y it self.  This not  onl y p romises a dvances in m edicine and technolog y but also 
-forces us t o bro aden our view of co gnit ion, l ife, a nd our ethi cal r elat
-ionsh ip t o other beings. Th e 
-comi ng de cad es ma y see an ex traordinar y 
- 
- 
-fil led wit h chim eras, 
-c ybo r gs, and s ynthetic c r eatures 
-
- 
-a rich asso rtme nt of mi nds and bodies. It  will  be our 
-responsi bil it y to reco gniz e and guide these nov
-el f orms of li fe, and to co
--
-ex ist  in a mutuall y 
-beneficial s ymbi osis . The stud y of coll ecti ve cell ular int ell igen ce and bio e lectric comm unicati on 
-is a ke y st epping stone to ward that futur e, il lum inating how evolut ion alre a d y sol ved man y 
-problems of coope ra
-ti on and offe ring us a bluepri nt for ex tending those sol uti ons be yond the 
-boundaries of tr adit ional biol og y.
- 
-
-
- 
-
-
+**In conclusion**, the unreliability of living hardware forced evolution to drive an **intelligence
+ratchet** – a rise of problem-solving capacity embodied in cells and tissues to ensure organisms
+hit their developmental and survival targets. We, as engineers of new bio-cognitive systems, are
+not so much inventing intelligence as we are finding ways to **interface with existing dynamics**
+and nudge them toward desired outcomes. Whether in a living embryo or a computer simulation,
+intelligence emerges when a system can pursue goals in its state space by flexible means. By
+understanding cells as agents and morphogenesis as their collective behavior, we gain the ability
+to program biology itself. This not only promises advances in medicine and technology but also
+forces us to broaden our view of cognition, life, and our ethical relationship to other beings. The
+coming decades may see an extraordinary **“Garden of Earthly Delights”** filled with chimeras,
+cyborgs, and synthetic creatures – a rich assortment of minds and bodies. It will be our
+responsibility to recognize and guide these novel forms of life, and to co-exist in a mutually
+beneficial symbiosis. The study of collective cellular intelligence and bioelectric communication
+is a key stepping stone toward that future, illuminating how evolution already solved many
+problems of cooperation and offering us a blueprint for extending those solutions beyond the
+boundaries of traditional biology.
