@@ -18,11 +18,7 @@ from bcm.core.bioelectric_core import BioelectricConsciousnessCore, BioelectricS
 from bcm.collective.cell_colony import CellColony
 from bcm.morphology.pattern_formation import BioelectricPatternFormation
 from bcm.goals.homeostasis import HomeostasisRegulator
-from bcm.utils.visualization import (
-    plot_voltage_potentials, 
-    plot_ion_gradients, 
-    plot_morphological_state
-)
+import bcm.utils.visualization as viz
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -133,17 +129,47 @@ def run_step():
     try:
         data = request.json
         config_updates = data.get('config_updates', {})
-        state_data = data.get('state')
-        scenario_id = data.get('scenario', 'default')
+        current_state = data.get('state', None)
         
         # Update config with provided parameters
         updated_config = update_config(default_config, config_updates)
         
         # Re-initialize models if config changed significantly
-        init_models(updated_config)
+        if config_updates:
+            init_models(updated_config)
+        
+        # Create initial state if not provided
+        if not current_state:
+            # Create default initial state
+            grid_size = updated_config['core'].get('field_dimension', 10)
+            
+            # Initialize with small random values
+            voltage_potential = torch.randn(grid_size, grid_size, device=device) * 0.01
+            
+            # Add a specific pattern for demonstration
+            if data.get('scenario') == 'two_heads':
+                # Add two high-voltage regions suggesting two head formation sites
+                voltage_potential[1:3, 1:3] = 0.8  # Top head voltage pattern
+                voltage_potential[7:9, 7:9] = 0.8  # Bottom head voltage pattern
+            
+            ion_gradients = {
+                'sodium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+                'potassium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+                'calcium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+            }
+            
+            morphological_state = torch.zeros(grid_size*grid_size, device=device)
+            
+            # Create state dictionary for JSON serialization
+            current_state = {
+                'voltage_potential': voltage_potential.cpu().numpy().tolist(),
+                'ion_gradients': {
+                    ion: grad.cpu().numpy().tolist() for ion, grad in current_state['ion_gradients'].items()
+                },
+                'morphological_state': morphological_state.cpu().numpy().tolist()
+            }
         
         # Convert state back to tensors for processing
-        global current_state
         voltage_potential = torch.tensor(current_state['voltage_potential'], device=device)
         ion_gradients = {
             ion: torch.tensor(grad, device=device) 
@@ -152,6 +178,7 @@ def run_step():
         morphological_state = torch.tensor(current_state['morphological_state'], device=device)
         
         # Create BioelectricState object
+        from bcm.core.bioelectric_core import BioelectricState
         state = BioelectricState(
             voltage_potential=voltage_potential,
             ion_gradients=ion_gradients,
@@ -167,7 +194,7 @@ def run_step():
             state = models['homeostasis'](state)
             
             # Convert back to Python native types for JSON serialization
-            current_state = {
+            result_state = {
                 'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
                 'ion_gradients': {
                     ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
@@ -177,17 +204,22 @@ def run_step():
             
             return jsonify({
                 'success': True,
-                'state': current_state
+                'state': result_state
             })
             
         except Exception as e:
+            logger.error(f"Error in model processing: {str(e)}")
             return jsonify({
                 'success': False,
                 'error': str(e)
             })
+            
     except Exception as e:
-        logger.error(f"Error running simulation step: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error in run_step: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'error': str(e)
+        })
 
 @app.route('/api/scenarios', methods=['GET'])
 def get_scenarios():
@@ -432,6 +464,54 @@ def modify_cell():
     except Exception as e:
         logger.error(f"Error modifying cell: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
+
+def convert_to_plotly_format(data, data_type='voltage'):
+    """
+    Convert tensor data to format suitable for plotly visualization
+    
+    Args:
+        data: Tensor data (voltage, ion gradient, etc.)
+        data_type: Type of data ('voltage', 'ion', 'morphology')
+        
+    Returns:
+        dict: Plot data for plotly
+    """
+    import numpy as np
+    
+    # Convert tensor to numpy if needed
+    if hasattr(data, 'cpu'):
+        data_np = data.cpu().numpy()
+    elif isinstance(data, list):
+        data_np = np.array(data)
+    else:
+        data_np = data
+        
+    # Set colorscale based on data type
+    if data_type == 'voltage':
+        colorscale = 'Viridis'
+        title = 'Membrane Potential (mV)'
+    elif data_type == 'sodium':
+        colorscale = 'Hot'
+        title = 'Sodium Concentration (mM)'
+    elif data_type == 'potassium':
+        colorscale = 'Blues'
+        title = 'Potassium Concentration (mM)'
+    elif data_type == 'calcium':
+        colorscale = 'Greens'
+        title = 'Calcium Concentration (mM)'
+    else:  # morphology
+        colorscale = 'Cividis'
+        title = 'Morphological State'
+    
+    # Create plot data
+    plot_data = {
+        'z': data_np.tolist() if isinstance(data_np, np.ndarray) else data_np,
+        'type': 'heatmap',
+        'colorscale': colorscale,
+        'colorbar': {'title': title}
+    }
+    
+    return plot_data
 
 if __name__ == '__main__':
     app.run(debug=True)
