@@ -100,16 +100,48 @@ class HomeostasisRegulator(nn.Module):
         
         return corrected_voltage, corrected_gradients
     
-    def forward(self, bioelectric_state):
-        """Process a bioelectric state through the homeostasis regulator"""
-        # Apply homeostatic correction
-        corrected_voltage, corrected_ions = self.apply_homeostatic_correction(
-            bioelectric_state.voltage_potential,
-            bioelectric_state.ion_gradients
+    def forward(self, state: BioelectricState) -> BioelectricState:
+        """
+        Apply homeostatic correction to maintain bioelectric stability.
+        
+        Args:
+            state: Current bioelectric state
+            
+        Returns:
+            Corrected bioelectric state with homeostasis applied
+        """
+        # Get current voltage and ion gradients
+        voltage_potential = state.voltage_potential
+        ion_gradients = state.ion_gradients
+        
+        # Store original shapes for reshaping later
+        original_shape = voltage_potential.shape
+        
+        # Create a simplified homeostatic correction 
+        # that maintains the input tensor dimensions
+        
+        # Get homeostatic setpoints
+        resting_potential = self.config.get('resting_potential', 0.2)
+        
+        # Calculate simple error between current voltage and resting potential
+        voltage_error = voltage_potential - resting_potential
+        
+        # Apply homeostatic strength to create correction
+        homeostasis_strength = self.config.get('homeostasis_strength', 0.8)
+        correction = -homeostasis_strength * voltage_error
+        
+        # Apply correction to voltage
+        corrected_voltage = voltage_potential + correction
+        
+        # Create corrected ion gradients (simplified to just maintain current state)
+        corrected_ions = {ion: grad.clone() for ion, grad in ion_gradients.items()}
+        
+        # Create updated state
+        updated_state = BioelectricState(
+            voltage_potential=corrected_voltage,
+            ion_gradients=corrected_ions,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
         )
         
-        # Update the state with corrections
-        bioelectric_state.voltage_potential = corrected_voltage
-        bioelectric_state.ion_gradients = corrected_ions
-        
-        return bioelectric_state
+        return updated_state
