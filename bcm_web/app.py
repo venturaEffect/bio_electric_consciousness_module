@@ -71,7 +71,14 @@ def create_default_config():
             'pattern_complexity': 0.7,
             'reaction_rate': 0.3,
             'diffusion_rate': 0.1,
-            'boundary_condition': 'circular'
+            'boundary_condition': 'circular',
+            # Add the missing morphology section
+            'morphology': {
+                'stability_preference': 0.7,
+                'growth_rate': 0.2,
+                'polarization_threshold': 0.3,
+                'pattern_scale': 1.0
+            }
         },
         'colony': {
             'num_cells': 5,
@@ -233,26 +240,199 @@ class SimplifiedBioelectricCore(torch.nn.Module):
         
         return laplacian
 
+class SimplifiedPatternFormation(torch.nn.Module):
+    """
+    A simplified version of the BioelectricPatternFormation for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.pattern_complexity = config.get('pattern_complexity', 0.7)
+        self.reaction_rate = config.get('reaction_rate', 0.3)
+        self.diffusion_rate = config.get('diffusion_rate', 0.1)
+        self.field_dimension = config.get('field_dimension', 10)
+        
+    def forward(self, state):
+        """Process a state through simplified pattern formation dynamics."""
+        # Extract morphological state and voltage potential
+        morphological_state = state.morphological_state
+        voltage = state.voltage_potential
+        
+        # Convert to appropriate format if needed
+        if isinstance(morphological_state, torch.Tensor):
+            morph_flat = morphological_state.flatten()
+        else:
+            morph_flat = torch.tensor(morphological_state, device=voltage.device).flatten()
+        
+        # Resize if needed
+        field_dim = self.field_dimension
+        if len(morph_flat) < field_dim*field_dim:
+            # Pad with zeros
+            padding = torch.zeros(field_dim*field_dim - len(morph_flat), device=morph_flat.device)
+            morph_flat = torch.cat([morph_flat, padding])
+        elif len(morph_flat) > field_dim*field_dim:
+            # Truncate
+            morph_flat = morph_flat[:field_dim*field_dim]
+        
+        # Reshape to 2D
+        morph_2d = morph_flat.reshape(field_dim, field_dim)
+        
+        # Apply simple pattern formation rule (simplified reaction-diffusion)
+        voltage_influence = 0.1 * (voltage - voltage.mean())
+        morph_laplacian = self._compute_laplacian(morph_2d)
+        
+        # Update morphological state
+        updated_morph = morph_2d + self.reaction_rate * voltage_influence + self.diffusion_rate * morph_laplacian
+        updated_morph = torch.tanh(updated_morph)  # Bound values
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=state.voltage_potential,
+            ion_gradients=state.ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=updated_morph.flatten()
+        )
+        
+        return new_state
+    
+    def _compute_laplacian(self, tensor):
+        """Compute discrete Laplacian operator (for diffusion)."""
+        # Get dimensions
+        h, w = tensor.shape
+        
+        # Compute discrete Laplacian
+        laplacian = torch.zeros_like(tensor)
+        
+        # Internal points
+        for i in range(1, h-1):
+            for j in range(1, w-1):
+                laplacian[i, j] = (
+                    tensor[i+1, j] + tensor[i-1, j] + 
+                    tensor[i, j+1] + tensor[i, j-1] - 
+                    4 * tensor[i, j]
+                )
+                
+        # Boundary conditions (no-flux)
+        for j in range(1, w-1):
+            laplacian[0, j] = 2 * tensor[1, j] + tensor[0, j+1] + tensor[0, j-1] - 4 * tensor[0, j]
+            laplacian[h-1, j] = 2 * tensor[h-2, j] + tensor[h-1, j+1] + tensor[h-1, j-1] - 4 * tensor[h-1, j]
+        
+        for i in range(1, h-1):
+            laplacian[i, 0] = tensor[i+1, 0] + tensor[i-1, 0] + 2 * tensor[i, 1] - 4 * tensor[i, 0]
+            laplacian[i, w-1] = tensor[i+1, w-1] + tensor[i-1, w-1] + 2 * tensor[i, w-2] - 4 * tensor[i, w-1]
+        
+        # Corners
+        laplacian[0, 0] = 2 * tensor[1, 0] + 2 * tensor[0, 1] - 4 * tensor[0, 0]
+        laplacian[0, w-1] = 2 * tensor[1, w-1] + 2 * tensor[0, w-2] - 4 * tensor[0, w-1]
+        laplacian[h-1, 0] = 2 * tensor[h-2, 0] + 2 * tensor[h-1, 1] - 4 * tensor[h-1, 0]
+        laplacian[h-1, w-1] = 2 * tensor[h-2, w-1] + 2 * tensor[h-1, w-2] - 4 * tensor[h-1, w-1]
+        
+        return laplacian
+
+class SimplifiedColony(torch.nn.Module):
+    """
+    A simplified version of the CellColony for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.communication_strength = config.get('communication_strength', 0.6)
+        
+    def forward(self, state):
+        """Process a state through simplified colony interactions."""
+        # For simplicity, just apply a small amount of global communication
+        new_voltage = state.voltage_potential * (1.0 - self.communication_strength) + \
+                     state.voltage_potential.mean() * self.communication_strength
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=new_voltage,
+            ion_gradients=state.ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
+        )
+        
+        return new_state
+
+class SimplifiedHomeostasis(torch.nn.Module):
+    """
+    A simplified version of the HomeostasisRegulator for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.homeostasis_strength = config.get('homeostasis_strength', 0.5)
+        self.resting_potential = config.get('resting_potential', -0.2)
+        self.target_ion_levels = config.get('target_ion_levels', {
+            'sodium': 0.1,
+            'potassium': 0.8,
+            'calcium': 0.2
+        })
+        
+    def forward(self, state):
+        """Apply simple homeostatic correction."""
+        # Pull voltage toward resting potential
+        voltage_error = state.voltage_potential - self.resting_potential
+        correction = -self.homeostasis_strength * voltage_error
+        new_voltage = state.voltage_potential + correction
+        
+        # Apply simple homeostasis to ion gradients
+        new_ion_gradients = {}
+        for ion, grad in state.ion_gradients.items():
+            if ion in self.target_ion_levels:
+                target = self.target_ion_levels[ion]
+                error = grad - target
+                ion_correction = -self.homeostasis_strength * 0.5 * error
+                new_ion_gradients[ion] = grad + ion_correction
+            else:
+                new_ion_gradients[ion] = grad
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=new_voltage,
+            ion_gradients=new_ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
+        )
+        
+        return new_state
+
 def init_models(config):
     """Initialize models based on configuration."""
     global models
     
     logger.info("Initializing models with current configuration")
     
+    # Initialize core model
     try:
         models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
     except Exception as e:
         logger.warning(f"Failed to initialize full core model: {str(e)}. Using simplified version.")
         models['core'] = SimplifiedBioelectricCore(config['core']).to(device)
     
-    # Continue with other models
+    # Initialize pattern model
     try:
         models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize pattern formation model: {str(e)}. Using simplified version.")
+        models['pattern_model'] = SimplifiedPatternFormation(config['pattern_formation']).to(device)
+    
+    # Initialize colony model
+    try:
         models['colony'] = CellColony(config['colony']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize colony model: {str(e)}. Using simplified version.")
+        models['colony'] = SimplifiedColony(config['colony']).to(device)
+    
+    # Initialize homeostasis model
+    try:
         models['homeostasis'] = HomeostasisRegulator(config['homeostasis']).to(device)
     except Exception as e:
-        logger.error(f"Error initializing models: {str(e)}")
-        raise
+        logger.warning(f"Failed to initialize homeostasis model: {str(e)}. Using simplified version.")
+        models['homeostasis'] = SimplifiedHomeostasis(config['homeostasis']).to(device)
     
     return models
 
