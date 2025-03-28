@@ -12,7 +12,6 @@ import networkx as nx
 from typing import Dict, List, Optional, Tuple, Any
 import os
 from pathlib import Path
-import seaborn as sns
 from ..core.bioelectric_core import BioelectricState
 from matplotlib.animation import FuncAnimation
 
@@ -22,6 +21,25 @@ BIOELECTRIC_CMAP = LinearSegmentedColormap.from_list(
     ['darkblue', 'blue', 'lightblue', 'white', 'yellow', 'orange', 'red'],
     N=256
 )
+
+try:
+    import seaborn as sns
+except ImportError:
+    import matplotlib.pyplot as plt
+    # Create a minimal compatibility layer
+    class SeabornCompatibility:
+        def heatmap(self, data, ax=None, cmap='viridis', annot=False):
+            if ax is None:
+                _, ax = plt.subplots()
+            im = ax.imshow(data, cmap=cmap)
+            plt.colorbar(im, ax=ax)
+            if annot:
+                for i in range(data.shape[0]):
+                    for j in range(data.shape[1]):
+                        ax.text(j, i, f"{data[i, j]:.2f}",
+                                ha="center", va="center", color="w")
+            return ax
+    sns = SeabornCompatibility()
 
 def plot_voltage_potential(state, save_path=None, show=False):
     """Plot voltage potential field from a bioelectric state."""
