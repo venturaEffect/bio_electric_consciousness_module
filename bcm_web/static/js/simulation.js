@@ -4,6 +4,7 @@ $(document).ready(function () {
   let iterationCount = 0;
   let autoRunInterval = null;
   let currentView = "voltage";
+  let cellSize = 30; // Size of each cell in pixels for the click handler
   let timeSeriesData = {
     voltage: [],
     complexity: [],
@@ -68,38 +69,103 @@ $(document).ready(function () {
 
   // Add interactive cell state modification
   $("#visualization").on("click", function (e) {
-    // Convert click coordinates to cell position
-    const rect = this.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / cellSize);
-    const y = Math.floor((e.clientY - rect.top) / cellSize);
+    if (!currentState) return;
 
-    // Get currently selected ion and intensity
-    const ionType = $("#ion-selector").val();
-    const intensity = $("#intensity-slider").val();
+    // Get plot dimensions
+    const plotElement = document.getElementById("visualization");
+    const plotRect = plotElement.getBoundingClientRect();
 
-    // Send update request to server
-    $.post("/api/modify_cell", {
-      x: x,
-      y: y,
-      ion: ionType,
-      intensity: intensity,
-    }).done(function (response) {
-      // Update visualization with new state
-      updateVisualization(response.state);
-    });
+    // Calculate the grid size from current state
+    const gridSize = currentState.voltage_potential.length;
+
+    // Calculate cell size in pixels
+    const cellWidth = plotRect.width / gridSize;
+    const cellHeight = plotRect.height / gridSize;
+
+    // Calculate click position
+    const x = Math.floor((e.clientX - plotRect.left) / cellWidth);
+    const y = Math.floor((e.clientY - plotRect.top) / cellHeight);
+
+    // Ensure coordinates are within bounds
+    if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
+      // Get currently selected ion and intensity
+      const ionType = $("#ion-selector").val() || "voltage";
+      const intensity = parseFloat($("#intensity-slider").val() || 0.8);
+
+      console.log(
+        `Modifying cell at (${x}, ${y}) with ${ionType} = ${intensity}`
+      );
+
+      // Send update request to server
+      $.ajax({
+        url: "/api/modify_cell",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          x: x,
+          y: y,
+          ion: ionType,
+          intensity: intensity,
+          state: currentState,
+        }),
+        success: function (response) {
+          if (response.success) {
+            currentState = response.state;
+            updateVisualization();
+          } else {
+            console.error("Error modifying cell:", response.error);
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("AJAX error:", error);
+        },
+      });
+    }
+  });
+
+  // Add ion selector and intensity slider handlers
+  $("#ion-selector").change(function () {
+    // Update intensity slider label based on selected ion
+    const ion = $(this).val();
+    $("#intensity-label").text(
+      `${ion.charAt(0).toUpperCase() + ion.slice(1)} Intensity`
+    );
   });
 
   // Add experiment preset buttons
-  $("#experiment-presets").on("change", function () {
+  $("#experiment-presets").change(function () {
     const experimentType = $(this).val();
 
+    // Disable the control during experiment setup
+    $(this).prop("disabled", true);
+
     // Request server to set up the experiment
-    $.post(`/api/scenarios/${experimentType}`, {
-      steps: 50, // Initial run steps
-    }).done(function (response) {
-      // Update UI with experiment state
-      $("#experiment-description").text(response.description);
-      updateVisualization(response.state);
+    $.ajax({
+      url: `/api/scenarios/${experimentType}`,
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        steps: 50, // Initial run steps
+      }),
+      success: function (response) {
+        if (response.success) {
+          // Update UI with experiment state
+          $("#experiment-description").text(response.description);
+          currentState = response.state;
+          iterationCount = response.iteration || 0;
+          $("#iteration-count").val(iterationCount);
+          updateVisualization();
+        } else {
+          console.error("Error setting up experiment:", response.error);
+        }
+        // Re-enable the control
+        $("#experiment-presets").prop("disabled", false);
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX error:", error);
+        // Re-enable the control
+        $("#experiment-presets").prop("disabled", false);
+      },
     });
   });
 
@@ -134,22 +200,22 @@ $(document).ready(function () {
 
       parameters.forEach(function (param) {
         const html = `
-                    <div class="mb-3">
-                        <label for="${param.section}-${param.name}" class="form-label">${param.label}</label>
-                        <input type="range" class="form-range parameter-control" 
-                            id="${param.section}-${param.name}"
-                            data-section="${param.section}"
-                            data-name="${param.name}"
-                            min="${param.min}" max="${param.max}" step="${param.step}"
-                            value="${param.default}">
-                        <div class="d-flex justify-content-between">
-                            <span class="small">${param.min}</span>
-                            <span class="small value-display">${param.default}</span>
-                            <span class="small">${param.max}</span>
-                        </div>
-                        <p class="text-muted small">${param.description}</p>
-                    </div>
-                `;
+          <div class="mb-3">
+              <label for="${param.section}-${param.name}" class="form-label text-light">${param.label}</label>
+              <input type="range" class="form-range parameter-control" 
+                  id="${param.section}-${param.name}"
+                  data-section="${param.section}"
+                  data-name="${param.name}"
+                  min="${param.min}" max="${param.max}" step="${param.step}"
+                  value="${param.default}">
+              <div class="d-flex justify-content-between">
+                  <span class="small text-light">${param.min}</span>
+                  <span class="small value-display text-info">${param.default}</span>
+                  <span class="small text-light">${param.max}</span>
+              </div>
+              <p class="text-muted small">${param.description}</p>
+          </div>
+        `;
         container.append(html);
       });
 
@@ -162,22 +228,44 @@ $(document).ready(function () {
   }
 
   function initPlots() {
+    // Set dark theme for Plotly
+    const darkTheme = {
+      paper_bgcolor: "#222",
+      plot_bgcolor: "#222",
+      font: { color: "#fff" },
+      title: { font: { color: "#fff" } },
+      xaxis: {
+        title: { font: { color: "#fff" } },
+        color: "#fff",
+        gridcolor: "#444",
+      },
+      yaxis: {
+        title: { font: { color: "#fff" } },
+        color: "#fff",
+        gridcolor: "#444",
+      },
+    };
+
     // Create initial empty voltage potential plot
     const emptyHeatmap = {
       z: Array(10)
         .fill()
         .map(() => Array(10).fill(0)),
       type: "heatmap",
-      colorscale: "Viridis",
+      colorscale: "Plasma",
     };
 
-    Plotly.newPlot("visualization", [emptyHeatmap]);
+    Plotly.newPlot("visualization", [emptyHeatmap], {
+      ...darkTheme,
+      margin: { t: 0, l: 0, r: 0, b: 0 },
+    });
 
     // Create empty time series plot
     const timeSeriesLayout = {
+      ...darkTheme,
       title: "Average Voltage Over Time",
-      xaxis: { title: "Iteration" },
-      yaxis: { title: "Value" },
+      xaxis: { ...darkTheme.xaxis, title: "Iteration" },
+      yaxis: { ...darkTheme.yaxis, title: "Value" },
       margin: { t: 30, l: 40, r: 10, b: 40 },
     };
 
@@ -190,6 +278,7 @@ $(document).ready(function () {
           type: "scatter",
           mode: "lines",
           name: "Avg Voltage",
+          line: { color: "#00ffff" }, // Cyan color for visibility on dark background
         },
       ],
       timeSeriesLayout
@@ -197,9 +286,10 @@ $(document).ready(function () {
 
     // Create empty pattern metrics plot
     const metricsLayout = {
+      ...darkTheme,
       title: "Pattern Complexity",
-      xaxis: { title: "Iteration" },
-      yaxis: { title: "Complexity" },
+      xaxis: { ...darkTheme.xaxis, title: "Iteration" },
+      yaxis: { ...darkTheme.yaxis, title: "Complexity" },
       margin: { t: 30, l: 40, r: 10, b: 40 },
     };
 
@@ -212,7 +302,7 @@ $(document).ready(function () {
           type: "scatter",
           mode: "lines",
           name: "Complexity",
-          line: { color: "orange" },
+          line: { color: "#ff9500" }, // Orange color for visibility on dark background
         },
       ],
       metricsLayout
@@ -227,10 +317,14 @@ $(document).ready(function () {
         {
           z: currentState.voltage_potential,
           type: "heatmap",
-          colorscale: "Viridis",
+          colorscale: "Plasma",
           zmin: -1,
           zmax: 1,
-          colorbar: { title: "Voltage (mV)" },
+          colorbar: {
+            title: "Voltage (mV)",
+            tickfont: { color: "#fff" },
+            titlefont: { color: "#fff" },
+          },
         },
       ];
     } else if (currentView === "morphology") {
@@ -250,10 +344,14 @@ $(document).ready(function () {
         {
           z: morphology2D,
           type: "heatmap",
-          colorscale: "Cividis",
+          colorscale: "YlOrBr",
           zmin: -1,
           zmax: 1,
-          colorbar: { title: "Morphology" },
+          colorbar: {
+            title: "Morphology",
+            tickfont: { color: "#fff" },
+            titlefont: { color: "#fff" },
+          },
         },
       ];
     } else {
@@ -269,7 +367,7 @@ $(document).ready(function () {
               ionName === "sodium"
                 ? "Hot"
                 : ionName === "potassium"
-                ? "Blues"
+                ? "Bluered"
                 : "Greens",
             zmin: -1,
             zmax: 1,
@@ -277,10 +375,272 @@ $(document).ready(function () {
               title: `${
                 ionName.charAt(0).toUpperCase() + ionName.slice(1)
               } (mM)`,
+              tickfont: { color: "#fff" },
+              titlefont: { color: "#fff" },
             },
           },
         ];
       }
     }
+
+    // Update the plot with current data
+    Plotly.react("visualization", data, {
+      paper_bgcolor: "#222",
+      plot_bgcolor: "#222",
+      margin: { t: 0, l: 0, r: 0, b: 0 },
+    });
+
+    // Update time series data if we have state data
+    if (currentState.voltage_potential) {
+      const flatVoltage = currentState.voltage_potential.flat();
+      const avgVoltage =
+        flatVoltage.reduce((a, b) => a + b, 0) / flatVoltage.length;
+
+      // Calculate a simple "complexity" metric - standard deviation of voltage
+      const variance =
+        flatVoltage.reduce((a, b) => a + Math.pow(b - avgVoltage, 2), 0) /
+        flatVoltage.length;
+      const complexity = Math.sqrt(variance);
+
+      // Update time series
+      Plotly.extendTraces(
+        "time-series",
+        {
+          x: [[iterationCount]],
+          y: [[avgVoltage]],
+        },
+        [0]
+      );
+
+      // Update metrics
+      Plotly.extendTraces(
+        "pattern-metrics",
+        {
+          x: [[iterationCount]],
+          y: [[complexity]],
+        },
+        [0]
+      );
+
+      // Keep a limited window of data points
+      const maxPoints = 100;
+      if (iterationCount > maxPoints) {
+        Plotly.relayout("time-series", {
+          xaxis: {
+            range: [iterationCount - maxPoints, iterationCount],
+            color: "#fff",
+            gridcolor: "#444",
+          },
+        });
+
+        Plotly.relayout("pattern-metrics", {
+          xaxis: {
+            range: [iterationCount - maxPoints, iterationCount],
+            color: "#fff",
+            gridcolor: "#444",
+          },
+        });
+      }
+    }
   }
+
+  function runSimulationStep() {
+    // Collect updated parameters
+    const configUpdates = {};
+
+    $(".parameter-control").each(function () {
+      const section = $(this).data("section");
+      const name = $(this).data("name");
+      const value = parseFloat($(this).val());
+
+      if (!configUpdates[section]) {
+        configUpdates[section] = {};
+      }
+
+      configUpdates[section][name] = value;
+    });
+
+    // Prepare request data
+    const requestData = {
+      config_updates: configUpdates,
+      state: currentState,
+      scenario: $("#scenario-select").val(),
+    };
+
+    // Send request to server
+    $.ajax({
+      url: "/api/run_step",
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify(requestData),
+      success: function (response) {
+        if (response.success) {
+          currentState = response.state;
+          iterationCount++;
+          $("#iteration-count").val(iterationCount);
+
+          // Update visualizations
+          updateVisualization();
+        } else {
+          console.error("Error running simulation step:", response.error);
+          stopAutoRun();
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX error:", error);
+        stopAutoRun();
+      },
+    });
+  }
+
+  function resetSimulation() {
+    // Stop auto-run if active
+    stopAutoRun();
+
+    // Reset state and counter
+    currentState = null;
+    iterationCount = 0;
+    $("#iteration-count").val(0);
+
+    // Reset time series data
+    Plotly.react(
+      "time-series",
+      [
+        {
+          x: [],
+          y: [],
+          type: "scatter",
+          mode: "lines",
+          name: "Avg Voltage",
+          line: { color: "#00ffff" },
+        },
+      ],
+      {
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        title: {
+          text: "Average Voltage Over Time",
+          font: { color: "#fff" },
+        },
+        xaxis: {
+          title: { text: "Iteration", font: { color: "#fff" } },
+          color: "#fff",
+          gridcolor: "#444",
+        },
+        yaxis: {
+          title: { text: "Value", font: { color: "#fff" } },
+          color: "#fff",
+          gridcolor: "#444",
+        },
+        margin: { t: 30, l: 40, r: 10, b: 40 },
+      }
+    );
+
+    Plotly.react(
+      "pattern-metrics",
+      [
+        {
+          x: [],
+          y: [],
+          type: "scatter",
+          mode: "lines",
+          name: "Complexity",
+          line: { color: "#ff9500" },
+        },
+      ],
+      {
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        title: {
+          text: "Pattern Complexity",
+          font: { color: "#fff" },
+        },
+        xaxis: {
+          title: { text: "Iteration", font: { color: "#fff" } },
+          color: "#fff",
+          gridcolor: "#444",
+        },
+        yaxis: {
+          title: { text: "Complexity", font: { color: "#fff" } },
+          color: "#fff",
+          gridcolor: "#444",
+        },
+        margin: { t: 30, l: 40, r: 10, b: 40 },
+      }
+    );
+
+    // Run initial simulation step to get starting state
+    runSimulationStep();
+
+    // Reset button text
+    $("#run-simulation").text("Run");
+  }
+
+  function startAutoRun() {
+    // Clear existing interval if any
+    stopAutoRun();
+
+    // Start new interval
+    autoRunInterval = setInterval(function () {
+      runSimulationStep();
+    }, 200); // Run every 200ms
+
+    // Update checkbox
+    $("#auto-run").prop("checked", true);
+    $("#run-simulation").text("Stop");
+  }
+
+  function stopAutoRun() {
+    if (autoRunInterval) {
+      clearInterval(autoRunInterval);
+      autoRunInterval = null;
+    }
+
+    // Update checkbox
+    $("#auto-run").prop("checked", false);
+    $("#run-simulation").text("Run");
+  }
+
+  function exportData() {
+    if (!currentState) return;
+
+    // Prepare data for export
+    const exportData = {
+      iteration: iterationCount,
+      state: currentState,
+      parameters: {},
+    };
+
+    // Add parameters
+    $(".parameter-control").each(function () {
+      const section = $(this).data("section");
+      const name = $(this).data("name");
+      const value = parseFloat($(this).val());
+
+      if (!exportData.parameters[section]) {
+        exportData.parameters[section] = {};
+      }
+
+      exportData.parameters[section][name] = value;
+    });
+
+    // Convert to JSON and create download link
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(exportData, null, 2));
+    const downloadAnchorNode = document.createElement("a");
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute(
+      "download",
+      `bcm_simulation_${iterationCount}.json`
+    );
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  }
+
+  // Initialize by resetting
+  resetSimulation();
 });

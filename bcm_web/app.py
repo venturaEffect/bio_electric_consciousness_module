@@ -3,14 +3,17 @@ import os
 import sys
 import torch
 import numpy as np
+import json
 import yaml
+import logging
+from typing import Dict, Any, List, Optional
 
 # Add parent directory to path so we can import BCM modules
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 
 # Import BCM modules
-from bcm.core.bioelectric_core import BioelectricConsciousnessCore
+from bcm.core.bioelectric_core import BioelectricConsciousnessCore, BioelectricState
 from bcm.collective.cell_colony import CellColony
 from bcm.morphology.pattern_formation import BioelectricPatternFormation
 from bcm.goals.homeostasis import HomeostasisRegulator
@@ -20,7 +23,11 @@ from bcm.utils.visualization import (
     plot_morphological_state
 )
 
-# Create Flask app
+# Configure logging
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 
 # Load default configuration
@@ -28,14 +35,14 @@ config_path = os.path.join(parent_dir, 'configs', 'bioelectric_config.yaml')
 with open(config_path, 'r') as f:
     default_config = yaml.safe_load(f)
 
-# Global variables
+# Global model instances and device
 models = {}
-current_state = None
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger.info(f"Using device: {device}")
 
 def init_models(config):
     """Initialize models based on configuration."""
-    global models
+    logger.info("Initializing models with current configuration")
     
     models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
     models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
@@ -44,9 +51,12 @@ def init_models(config):
     
     return models
 
+# Initialize with default config
+init_models(default_config)
+
 @app.route('/')
 def index():
-    """Main page with interactive simulation interface."""
+    """Main page with simulation interface."""
     return render_template('index.html')
 
 @app.route('/api/init_simulation', methods=['POST'])
@@ -93,61 +103,64 @@ def init_simulation():
 @app.route('/api/run_step', methods=['POST'])
 def run_step():
     """Run a single simulation step with provided parameters."""
-    data = request.json
-    config_updates = data.get('config_updates', {})
-    
-    # Update config with provided parameters
-    updated_config = default_config.copy()
-    for section, params in config_updates.items():
-        if section in updated_config:
-            updated_config[section].update(params)
-    
-    # Re-initialize models if config changed significantly
-    init_models(updated_config)
-    
-    # Convert state back to tensors for processing
-    global current_state
-    voltage_potential = torch.tensor(current_state['voltage_potential'], device=device)
-    ion_gradients = {
-        ion: torch.tensor(grad, device=device) 
-        for ion, grad in current_state['ion_gradients'].items()
-    }
-    morphological_state = torch.tensor(current_state['morphological_state'], device=device)
-    
-    # Create BioelectricState object
-    state = BioelectricState(
-        voltage_potential=voltage_potential,
-        ion_gradients=ion_gradients,
-        gap_junction_states=torch.ones_like(voltage_potential),
-        morphological_state=morphological_state
-    )
-    
-    # Process through models
     try:
-        state = models['core'](state)
-        state = models['pattern_model'](state)
-        state = models['colony'](state)
-        state = models['homeostasis'](state)
+        data = request.json
+        config_updates = data.get('config_updates', {})
+        state_data = data.get('state')
+        scenario_id = data.get('scenario', 'default')
         
-        # Convert back to Python native types for JSON serialization
-        current_state = {
-            'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
-            'ion_gradients': {
-                ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
-            },
-            'morphological_state': state.morphological_state.cpu().numpy().tolist()
+        # Update config with provided parameters
+        updated_config = update_config(default_config, config_updates)
+        
+        # Re-initialize models if config changed significantly
+        init_models(updated_config)
+        
+        # Convert state back to tensors for processing
+        global current_state
+        voltage_potential = torch.tensor(current_state['voltage_potential'], device=device)
+        ion_gradients = {
+            ion: torch.tensor(grad, device=device) 
+            for ion, grad in current_state['ion_gradients'].items()
         }
+        morphological_state = torch.tensor(current_state['morphological_state'], device=device)
         
-        return jsonify({
-            'success': True,
-            'state': current_state
-        })
+        # Create BioelectricState object
+        state = BioelectricState(
+            voltage_potential=voltage_potential,
+            ion_gradients=ion_gradients,
+            gap_junction_states=torch.ones_like(voltage_potential),
+            morphological_state=morphological_state
+        )
         
+        # Process through models
+        try:
+            state = models['core'](state)
+            state = models['pattern_model'](state)
+            state = models['colony'](state)
+            state = models['homeostasis'](state)
+            
+            # Convert back to Python native types for JSON serialization
+            current_state = {
+                'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
+                'ion_gradients': {
+                    ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
+                },
+                'morphological_state': state.morphological_state.cpu().numpy().tolist()
+            }
+            
+            return jsonify({
+                'success': True,
+                'state': current_state
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+        logger.error(f"Error running simulation step: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/scenarios', methods=['GET'])
 def get_scenarios():
