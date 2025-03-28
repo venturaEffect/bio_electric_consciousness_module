@@ -6,29 +6,29 @@ body {
 }
 
 .card {
-  background-color: #1e1e1e !important;
-  border-color: #444444;
+  background-color: #1e1e1e;
+  border-color: #444;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .card-header {
   background-color: #2d2d2d;
-  border-bottom: 1px solid #333;
+  border-color: #444;
 }
 
 .form-control,
 .form-select {
-  background-color: #2a2a2a !important;
-  color: #e0e0e0 !important;
-  border-color: #444 !important;
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
 }
 
 .form-control:focus,
 .form-select:focus {
   background-color: #2d2d2d;
   color: #e0e0e0;
-  border-color: #00bcd4;
-  box-shadow: 0 0 0 0.25rem rgba(0, 188, 212, 0.25);
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
 .form-control:disabled,
@@ -50,13 +50,14 @@ body {
 }
 
 .btn-outline-secondary {
-  color: #a7acb1;
-  border-color: #a7acb1;
+  color: #adb5bd;
+  border-color: #6c757d;
 }
 
 .btn-outline-secondary:hover {
-  background-color: #6c757d;
   color: #fff;
+  background-color: #5a6268;
+  border-color: #545b62;
 }
 
 .btn-outline-success {
@@ -102,9 +103,9 @@ body {
 }
 
 .btn-group .btn.active {
-  background-color: #005a64;
+  background-color: #0d6efd;
   color: white;
-  border-color: #00bcd4;
+  border-color: #0d6efd;
 }
 
 .form-range::-webkit-slider-thumb {
@@ -127,22 +128,42 @@ body {
 #visualization,
 #time-series,
 #pattern-metrics {
-  background-color: #2d2d2d;
-  border-radius: 4px;
   width: 100%;
+  background-color: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 0.25rem;
 }
 
 /* Make Plotly dark theme compatible */
 .js-plotly-plot .plotly .main-svg {
-  background-color: #222 !important;
+  background-color: #1e1e1e !important;
 }
 
 .js-plotly-plot .plotly .bg {
-  fill: #222 !important;
+  fill: #1e1e1e !important;
 }
 
 .plotly-legend {
   background-color: rgba(34, 34, 34, 0.7) !important;
+}
+
+.js-plotly-plot .plotly .xtick text,
+.js-plotly-plot .plotly .ytick text,
+.js-plotly-plot .plotly .gtitle,
+.js-plotly-plot .plotly .ztick text {
+  fill: #e0e0e0 !important;
+}
+
+.js-plotly-plot .plotly .xaxislayer-above path,
+.js-plotly-plot .plotly .yaxislayer-above path,
+.js-plotly-plot .plotly .zaxislayer-above path {
+  stroke: #666 !important;
+}
+
+.js-plotly-plot .plotly .xtick,
+.js-plotly-plot .plotly .ytick,
+.js-plotly-plot .plotly .ztick {
+  stroke: #666 !important;
 }
 
 /* Dark scrollbar */
@@ -178,12 +199,11 @@ body {
 
 .parameter-control {
   margin-top: 0.5rem;
-  accent-color: #00bcd4;
 }
 
 .value-display {
   font-weight: bold;
-  color: #00bcd4 !important;
+  color: #0d6efd;
 }
 
 .form-label {

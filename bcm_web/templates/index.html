@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html data-bs-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bioelectric Consciousness Module - Interactive Explorer</title>
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
     <link
@@ -17,11 +17,18 @@
   </head>
   <body class="bg-dark text-light">
     <div class="container-fluid">
-      <header class="bg-black text-light p-3 mb-4">
-        <h1>Bioelectric Consciousness Module</h1>
+      <header
+        class="bg-black text-white p-3 mb-4 border-bottom border-secondary"
+      >
+        <div class="d-flex justify-content-between align-items-center">
+          <h1>Bioelectric Consciousness Module</h1>
+          <div>
+            <span class="badge bg-success">Levin Lab Inspired</span>
+          </div>
+        </div>
         <p class="lead">
-          Interactive exploration of bioelectric pattern formation and signaling
-          inspired by Michael Levin's research
+          Interactive exploration of bioelectric pattern formation and
+          morphogenesis
         </p>
       </header>
 
@@ -30,28 +37,22 @@
         <div class="col-md-3">
           <div class="card bg-dark border-secondary mb-4">
             <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Experimental Scenarios</h5>
+              <h5>Experimental Scenarios</h5>
             </div>
             <div class="card-body">
               <select
                 id="scenario-select"
-                class="form-select mb-3 bg-dark text-light border-secondary"
+                class="form-select bg-dark text-light border-secondary mb-3"
               >
                 <!-- Will be populated dynamically -->
               </select>
               <p id="scenario-description" class="text-muted small"></p>
-              <button
-                id="reset-simulation"
-                class="btn btn-outline-secondary btn-sm"
-              >
-                Reset
-              </button>
-              <button
-                id="run-simulation"
-                class="btn btn-outline-primary btn-sm"
-              >
-                Run
-              </button>
+              <div class="d-flex gap-2">
+                <button id="reset-simulation" class="btn btn-outline-secondary">
+                  Reset
+                </button>
+                <button id="run-simulation" class="btn btn-primary">Run</button>
+              </div>
               <div class="form-check mt-3">
                 <input class="form-check-input" type="checkbox" id="auto-run" />
                 <label class="form-check-label" for="auto-run">
@@ -63,7 +64,7 @@
 
           <div class="card bg-dark border-secondary mb-4">
             <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Parameters</h5>
+              <h5>Parameters</h5>
             </div>
             <div class="card-body" id="parameters-container">
               <!-- Will be populated dynamically -->
@@ -72,77 +73,9 @@
 
           <div class="card bg-dark border-secondary mb-4">
             <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Cell Manipulation</h5>
+              <h5>Simulation Controls</h5>
             </div>
             <div class="card-body">
-              <p class="small">
-                Click on the visualization grid to modify cells directly
-              </p>
-              <div class="mb-3">
-                <label for="ion-selector" class="form-label"
-                  >Property to Modify</label
-                >
-                <select
-                  id="ion-selector"
-                  class="form-select bg-dark text-light border-secondary"
-                >
-                  <option value="voltage">Voltage Potential</option>
-                  <option value="sodium">Sodium Ion (Na+)</option>
-                  <option value="potassium">Potassium Ion (K+)</option>
-                  <option value="calcium">Calcium Ion (Ca2+)</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label
-                  id="intensity-label"
-                  for="intensity-slider"
-                  class="form-label"
-                  >Voltage Intensity</label
-                >
-                <input
-                  type="range"
-                  class="form-range"
-                  id="intensity-slider"
-                  min="-1"
-                  max="1"
-                  step="0.1"
-                  value="0.8"
-                />
-                <div class="d-flex justify-content-between">
-                  <span class="small">-1.0</span>
-                  <span class="small value-display text-info">0.8</span>
-                  <span class="small">1.0</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="card bg-dark border-secondary">
-            <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Levin-Inspired Experiments</h5>
-            </div>
-            <div class="card-body">
-              <div class="mb-3">
-                <label for="experiment-presets" class="form-label"
-                  >Predefined Experiments</label
-                >
-                <select
-                  id="experiment-presets"
-                  class="form-select bg-dark text-light border-secondary"
-                >
-                  <option value="" selected disabled>
-                    Select an experiment
-                  </option>
-                  <option value="two_head_planarian">
-                    Two-Headed Planarian
-                  </option>
-                  <option value="eye_induction">Ectopic Eye Formation</option>
-                  <option value="organ_reprogramming">
-                    Organ Reprogramming
-                  </option>
-                </select>
-              </div>
-              <p id="experiment-description" class="text-muted small mt-2"></p>
               <div class="mb-3">
                 <label for="iteration-count" class="form-label"
                   >Iteration</label
@@ -155,12 +88,55 @@
                   value="0"
                 />
               </div>
-              <button id="step-button" class="btn btn-outline-info btn-sm">
-                Step
-              </button>
-              <button id="export-data" class="btn btn-outline-secondary btn-sm">
-                Export Data
-              </button>
+              <div class="d-flex gap-2">
+                <button id="step-button" class="btn btn-outline-primary">
+                  Step
+                </button>
+                <button id="export-data" class="btn btn-outline-secondary">
+                  Export Data
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive tool panel -->
+          <div class="card bg-dark border-secondary">
+            <div class="card-header bg-dark border-secondary">
+              <h5>Bioelectric Tools</h5>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label">Voltage Injection Tool</label>
+                <select
+                  id="ion-selector"
+                  class="form-select bg-dark text-light border-secondary mb-2"
+                >
+                  <option value="voltage">Voltage</option>
+                  <option value="sodium">Sodium</option>
+                  <option value="potassium">Potassium</option>
+                  <option value="calcium">Calcium</option>
+                </select>
+                <label for="intensity-slider" class="form-label"
+                  >Signal Intensity</label
+                >
+                <input
+                  type="range"
+                  class="form-range"
+                  id="intensity-slider"
+                  min="-1"
+                  max="1"
+                  step="0.1"
+                  value="0.8"
+                />
+                <div class="d-flex justify-content-between">
+                  <span class="small">-1.0</span>
+                  <span class="small" id="intensity-value">0.8</span>
+                  <span class="small">1.0</span>
+                </div>
+                <p class="text-muted small mt-2">
+                  Click on the visualization to inject signals
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -171,53 +147,53 @@
             <div
               class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center"
             >
-              <h5 class="text-info">Bioelectric Visualization</h5>
+              <h5>Bioelectric Visualization</h5>
               <div class="btn-group btn-group-sm" role="group">
                 <button
                   type="button"
-                  class="btn btn-outline-info active"
+                  class="btn btn-outline-secondary active"
                   data-view="voltage"
                 >
                   Voltage
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary"
                   data-view="sodium"
                 >
-                  Na+ Gradient
+                  Na+
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary"
                   data-view="potassium"
                 >
-                  K+ Gradient
+                  K+
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary"
                   data-view="calcium"
                 >
-                  Ca2+ Gradient
+                  Ca2+
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary"
                   data-view="morphology"
                 >
                   Morphology
                 </button>
               </div>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body">
               <div id="visualization" style="height: 500px"></div>
             </div>
           </div>
 
           <div class="card bg-dark border-secondary">
             <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Emergent Properties</h5>
+              <h5>Emergent Properties</h5>
             </div>
             <div class="card-body">
               <div class="row">
@@ -233,10 +209,10 @@
         </div>
       </div>
 
-      <footer class="text-center mt-4 mb-2">
-        <p class="small text-muted">
-          Bioelectric Consciousness Module - Inspired by Michael Levin's
-          research on bioelectricity in morphogenesis
+      <footer class="mt-4 p-3 text-center text-muted small">
+        <p>
+          Bioelectric Consciousness Module - Inspired by the work of Michael
+          Levin's lab on bioelectricity in morphogenesis
         </p>
       </footer>
     </div>
