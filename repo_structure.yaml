@@ -67,6 +67,27 @@
         type: file
     - path: /bcm/__init__.py
       type: file
+  - path: /bcm_web
+    type: directory
+    contents:
+    - path: /bcm_web/app.py
+      type: file
+    - path: /bcm_web/static
+      type: directory
+      contents:
+      - path: /bcm_web/static/css
+        type: directory
+        contents:
+      - path: /bcm_web/static/js
+        type: directory
+        contents:
+        - path: /bcm_web/static/js/simulation.js
+          type: file
+    - path: /bcm_web/templates
+      type: directory
+      contents:
+      - path: /bcm_web/templates/index.html
+        type: file
   - path: /configs
     type: directory
     contents:
