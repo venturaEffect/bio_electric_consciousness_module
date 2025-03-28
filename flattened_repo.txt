@@ -539,6 +539,109 @@ class BioelectricConsciousnessCore(nn.Module):
         entropy = -torch.sum(normalized_spectrum * torch.log2(normalized_spectrum + 1e-10))
         
         return entropy.item()
+
+    def forward(self, state: BioelectricState) -> BioelectricState:
+        """
+        Process a bioelectric state through the consciousness core.
+        
+        Args:
+            state: Current bioelectric state
+            
+        Returns:
+            Updated bioelectric state
+        """
+        # Get original shapes for later reshaping
+        original_shape = state.voltage_potential.shape
+        
+        # Process through ion channels
+        ion_states = {}
+        for ion_name, channel in self.ion_channels.items():
+            if ion_name in state.ion_gradients:
+                # Flatten and process
+                input_tensor = state.ion_gradients[ion_name].flatten()
+                
+                # Get expected input dimension
+                expected_dim = self.config['sodium_channel']['input_dim']
+                
+                # Resize input to match expected dimension
+                if len(input_tensor) < expected_dim:
+                    # Pad if too small
+                    padding = torch.zeros(expected_dim - len(input_tensor), device=input_tensor.device)
+                    input_tensor = torch.cat([input_tensor, padding])
+                else:
+                    # Truncate if too large
+                    input_tensor = input_tensor[:expected_dim]
+                    
+                # Process through channel
+                output = channel(input_tensor)
+                
+                # Resize output to match original dimensions
+                total_elements = original_shape[0] * original_shape[1]
+                if len(output) < total_elements:
+                    # Pad if too small
+                    padding = torch.zeros(total_elements - len(output), device=output.device)
+                    resized_output = torch.cat([output, padding])
+                else:
+                    # Truncate if too large
+                    resized_output = output[:total_elements]
+                    
+                # Reshape to original dimensions
+                ion_states[ion_name] = resized_output.reshape(original_shape)
+            else:
+                # Initialize if not present
+                ion_states[ion_name] = torch.zeros(original_shape, device=state.voltage_potential.device)
+        
+        # Update voltage potential based on ion channel states
+        voltage_update = torch.zeros_like(state.voltage_potential)
+        for ion_update in ion_states.values():
+            # Ensure matching shapes before adding
+            if ion_update.shape == state.voltage_potential.shape:
+                voltage_update += ion_update
+        
+        # Create updated voltage potential
+        voltage_potential = torch.tanh(state.voltage_potential + voltage_update)
+        
+        # Simple handling of morphological state (avoiding complex reshaping)
+        # Just keep it the same for now to ensure the simulation runs
+        morphological_state = state.morphological_state
+        
+        # Create updated state
+        updated_state = BioelectricState(
+            voltage_potential=voltage_potential,
+            ion_gradients=ion_states,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=morphological_state
+        )
+        
+        return updated_state
+
+def run_simulation(models, sim_params, output_dir, device):
+    # Setup simulation parameters
+    time_steps = sim_params['simulation']['time_steps']
+    dt = sim_params['simulation']['dt']
+    save_interval = sim_params['simulation']['save_interval']
+    
+    # Initialize state history for visualization
+    state_history = []
+    
+    # Initialize bioelectric state with appropriate dimensions
+    field_dim = models['core'].config['field_dimension']
+    morphology_dim = models['core'].config['morphology']['state_dim']
+    
+    initial_state = BioelectricState(
+        voltage_potential=torch.zeros(field_dim, device=device),
+        ion_gradients={
+            'sodium': torch.ones(field_dim, device=device) * 0.1,
+            'potassium': torch.ones(field_dim, device=device) * 0.9,
+            'calcium': torch.ones(field_dim, device=device) * 0.2
+        },
+        gap_junction_states=torch.eye(field_dim, device=device),
+        morphological_state=torch.zeros(morphology_dim, device=device)
+    )
+    
+    current_state = initial_state
+    
+    # Rest of the simulation code...
 </bcm/core/bioelectric_core.py>
 
 <bcm/core/gap_junctions.py>
@@ -786,46 +889,37 @@ __all__ = ['BioelectricState', 'BioelectricConsciousnessCore']
 <bcm/goals/goal_states.py>
 """
 Implementation of primitive goal-directed behavior in bioelectric systems.
-This module defines goal states that bioelectric systems strive to achieve
-through self-regulation and adaptive behavior.
 """
 import torch
 import torch.nn as nn
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional
 
 from bcm.core.bioelectric_core import BioelectricState
 
 class GoalState(nn.Module):
-    """
-    Represents a target bioelectric pattern that the system aims to achieve
-    through self-regulation mechanisms.
-    """
-    def __init__(self, target_shape: Tuple[int, ...], stability_threshold: float = 0.1):
+    """Represents a target bioelectric pattern that the system aims to achieve."""
+    def __init__(self, target_shape, stability_threshold=0.1):
         super().__init__()
         self.target_shape = target_shape
         self.stability_threshold = stability_threshold
         self.target_pattern = nn.Parameter(torch.randn(target_shape))
-        
-    def compute_deviation(self, current_state: BioelectricState) -> torch.Tensor:
-        """
-        Computes deviation between current state and goal state
-        """
-        # Implementation details
-        pass
-        
-    def is_satisfied(self, current_state: BioelectricState) -> bool:
-        """
-        Determines if current state satisfies the goal state
-        """
-        # Implementation details
-        pass
-        
-    def forward(self, current_state: BioelectricState) -> Dict[str, torch.Tensor]:
-        """
-        Computes goal-related metrics for the current state
-        """
-        # Implementation details
-        pass
+    
+    def compute_deviation(self, current_state):
+        """Compute deviation between current state and goal state"""
+        return torch.mean((current_state.voltage_potential - self.target_pattern) ** 2)
+    
+    def is_satisfied(self, current_state):
+        """Determine if current state satisfies the goal state"""
+        deviation = self.compute_deviation(current_state)
+        return deviation < self.stability_threshold
+    
+    def forward(self, current_state):
+        """Compute goal-related metrics"""
+        deviation = self.compute_deviation(current_state)
+        return {
+            "deviation": deviation,
+            "satisfied": self.is_satisfied(current_state)
+        }
 </bcm/goals/goal_states.py>
 
 <bcm/goals/homeostasis.py>
@@ -863,7 +957,7 @@ class HomeostasisRegulator(nn.Module):
             nn.Sigmoid(),
             nn.Linear(field_dim, field_dim)
         )
-        
+    
     def calculate_homeostatic_drive(self, 
                                    voltage_potential: torch.Tensor, 
                                    ion_gradients: Dict[str, torch.Tensor]) -> torch.Tensor:
@@ -892,7 +986,6 @@ class HomeostasisRegulator(nn.Module):
                 # Amplify error if outside range
                 outside_range = (gradient < target_min) | (gradient > target_max)
                 error = error * (1.0 + outside_range.float())
-                
                 ion_errors[ion] = error
         
         # Combine errors
@@ -907,85 +1000,44 @@ class HomeostasisRegulator(nn.Module):
     
     def apply_homeostatic_correction(self,
                                     voltage_potential: torch.Tensor,
-                                    ion_gradients:"""
-Implementation of homeostatic mechanisms for bioelectric systems.
-"""
-import torch
-import torch.nn as nn
-from typing import Dict, List, Tuple, Optional
-
-class HomeostasisRegulator(nn.Module):
-    """
-    Models homeostatic regulation in bioelectric systems.
-    
-    Homeostasis is the tendency of biological systems to maintain
-    stable internal states despite changing external conditions.
-    """
-    
-    def __init__(self, config: Dict):
-        super().__init__()
-        self.config = config
+                                    ion_gradients: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        """
+        Apply homeostatic correction to voltage and ion gradients
         
-        # Target states (resting potentials)
-        self.target_voltage = torch.tensor(config.get('resting_potential', 0.2))
-        self.target_ranges = {
-            'sodium': (0.05, 0.15),
-            'potassium': (0.85, 0.95),
-            'calcium': (0.15, 0.25)
-        }
+        Args:
+            voltage_potential: Current voltage potential
+            ion_gradients: Current ion gradients
+            
+        Returns:
+            Corrected voltage potential and ion gradients
+        """
+        # Calculate correction signal
+        correction = self.calculate_homeostatic_drive(voltage_potential, ion_gradients)
         
-        # Homeostasis regulation network
-        field_dim = config['field_dimension']
-        self.homeostasis_network = nn.Sequential(
-            nn.Linear(field_dim, field_dim),
-            nn.Sigmoid(),
-            nn.Linear(field_dim, field_dim)
+        # Apply correction to voltage
+        strength = self.config.get('homeostasis_strength', 0.1)
+        corrected_voltage = voltage_potential + correction * strength
+        
+        # Apply smaller corrections to ion gradients
+        corrected_gradients = {}
+        for ion, gradient in ion_gradients.items():
+            corrected_gradients[ion] = gradient + correction * strength * 0.5
+        
+        return corrected_voltage, corrected_gradients
+    
+    def forward(self, bioelectric_state):
+        """Process a bioelectric state through the homeostasis regulator"""
+        # Apply homeostatic correction
+        corrected_voltage, corrected_ions = self.apply_homeostatic_correction(
+            bioelectric_state.voltage_potential,
+            bioelectric_state.ion_gradients
         )
         
-    def calculate_homeostatic_drive(self, 
-                                   voltage_potential: torch.Tensor, 
-                                   ion_gradients: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """
-        Calculate homeostatic drive to restore stable state
+        # Update the state with corrections
+        bioelectric_state.voltage_potential = corrected_voltage
+        bioelectric_state.ion_gradients = corrected_ions
         
-        Args:
-            voltage_potential: Current voltage potential
-            ion_gradients: Current ion gradients
-            
-        Returns:
-            Homeostatic correction signal
-        """
-        # Calculate voltage error
-        voltage_error = self.target_voltage - voltage_potential
-        
-        # Calculate ion gradient errors
-        ion_errors = {}
-        for ion, gradient in ion_gradients.items():
-            if ion in self.target_ranges:
-                target_min, target_max = self.target_ranges[ion]
-                target_mid = (target_min + target_max) / 2
-                
-                # Error is stronger if outside target range
-                error = target_mid - gradient
-                # Amplify error if outside range
-                outside_range = (gradient < target_min) | (gradient > target_max)
-                error = error * (1.0 + outside_range.float())
-                
-                ion_errors[ion] = error
-        
-        # Combine errors
-        combined_error = voltage_error
-        for error in ion_errors.values():
-            combined_error = combined_error + error * 0.2  # Ion errors have lower weight
-        
-        # Calculate homeostatic response through network
-        homeostatic_response = self.homeostasis_network(combined_error)
-        
-        return homeostatic_response
-    
-    def apply_homeostatic_correction(self,
-                                    voltage_potential: torch.Tensor,
-                                    ion_gradients:
+        return bioelectric_state
 </bcm/goals/homeostasis.py>
 
 <bcm/goals/__init__.py>
@@ -1147,6 +1199,88 @@ class BioelectricPatternFormation(nn.Module):
             'sparsity': sparsity,
             'dominant_frequency': torch.argmax(power_spectrum).item()
         }
+    
+    def forward(self, state):
+        """
+        Process a bioelectric state through the pattern formation network.
+        
+        Args:
+            state: Current bioelectric state
+            
+        Returns:
+            Updated bioelectric state with new morphological patterns
+        """
+        # Extract morphological state and voltage potential
+        morphological_state = state.morphological_state
+        voltage = state.voltage_potential
+        
+        # Convert to appropriate format if needed
+        if isinstance(morphological_state, torch.Tensor):
+            morph_flat = morphological_state.flatten()
+        else:
+            morph_flat = torch.tensor(morphological_state, device=voltage.device).flatten()
+        
+        # Get config parameters
+        field_dim = self.config['field_dimension']
+        pattern_complexity = self.config['pattern_complexity']
+        reaction_rate = self.config['reaction_rate']
+        
+        # Resize if needed
+        if len(morph_flat) < field_dim:
+            # Pad with zeros
+            padding = torch.zeros(field_dim - len(morph_flat), device=morph_flat.device)
+            morph_flat = torch.cat([morph_flat, padding])
+        elif len(morph_flat) > field_dim:
+            # Truncate
+            morph_flat = morph_flat[:field_dim]
+        
+        # Implement reaction-diffusion-like dynamics
+        # Simple example: combine current state with voltage influence
+        voltage_influence = voltage.flatten()[:len(morph_flat)] * reaction_rate
+        
+        # Ensure voltage_influence has correct dimensions
+        if len(voltage_influence) < len(morph_flat):
+            padding = torch.zeros(len(morph_flat) - len(voltage_influence), device=voltage_influence.device)
+            voltage_influence = torch.cat([voltage_influence, padding])
+        elif len(voltage_influence) > len(morph_flat):
+            voltage_influence = voltage_influence[:len(morph_flat)]
+        
+        # Update state with reaction term and non-linearity
+        updated_morph = torch.tanh(morph_flat + voltage_influence)
+        
+        # FIX: Use a 1D-compatible smoothing approach instead of pad with replicate mode
+        smoothed_morph = updated_morph.clone()
+        if len(updated_morph) > 3:  # Only if we have enough points
+            # Simple 1D diffusion using manual approach instead of pad
+            for i in range(len(updated_morph)):
+                # Handle boundaries without using pad
+                if i == 0:
+                    # Left boundary - duplicate first element
+                    neighbors = torch.tensor([updated_morph[0], updated_morph[0], updated_morph[1]], 
+                                            device=updated_morph.device)
+                elif i == len(updated_morph) - 1:
+                    # Right boundary - duplicate last element
+                    neighbors = torch.tensor([updated_morph[i-1], updated_morph[i], updated_morph[i]], 
+                                            device=updated_morph.device)
+                else:
+                    # Interior points
+                    neighbors = updated_morph[i-1:i+2]
+                
+                # Average of neighbors
+                smoothed_morph[i] = torch.mean(neighbors)
+        
+        # Blend original and smoothed states based on pattern complexity
+        final_morph = pattern_complexity * smoothed_morph + (1 - pattern_complexity) * updated_morph
+        
+        # Create updated state with same shape as input
+        updated_state = type(state)(
+            voltage_potential=state.voltage_potential,
+            ion_gradients=state.ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=final_morph
+        )
+        
+        return updated_state
 </bcm/morphology/pattern_formation.py>
 
 <bcm/morphology/spatial_encoding.py>
@@ -1358,9 +1492,7 @@ def summarize_bioelectric_state(state: BioelectricState) -> Dict[str, Any]:
 
 <bcm/utils/visualization.py>
 """
-Visualization utilities for bioelectric states and patterns.
-Provides tools to visualize bioelectric potentials, cell colonies,
-pattern formation, and other BCM components.
+Visualization tools for bioelectric consciousness module.
 """
 
 import numpy as np
@@ -1373,8 +1505,8 @@ import networkx as nx
 from typing import Dict, List, Optional, Tuple, Any
 import os
 from pathlib import Path
-import seaborn as sns
 from ..core.bioelectric_core import BioelectricState
+from matplotlib.animation import FuncAnimation
 
 # Define custom colormaps for bioelectric visualization
 BIOELECTRIC_CMAP = LinearSegmentedColormap.from_list(
@@ -1383,507 +1515,187 @@ BIOELECTRIC_CMAP = LinearSegmentedColormap.from_list(
     N=256
 )
 
-def plot_voltage_potential(state: BioelectricState, 
-                          ax: Optional[plt.Axes] = None,
-                          title: str = "Bioelectric Potential") -> plt.Axes:
-    """
-    Plot the voltage potential field
-    
-    Args:
-        state: BioelectricState containing voltage potential
-        ax: Optional matplotlib axis to plot on
-        title: Plot title
-        
-    Returns:
-        Matplotlib axis with the plot
-    """
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 4))
-    
-    # Get voltage data
-    voltage = state.voltage_potential.detach().cpu().numpy()
-    
-    # Plot as both a line and a heatmap
-    x = np.arange(len(voltage))
-    
-    # Plot voltage line
-    ax.plot(x, voltage, 'k-', linewidth=1.5, alpha=0.7)
-    
-    # Create heatmap below the line
-    extent = [0, len(voltage), np.min(voltage) - 0.5, np.max(voltage) + 0.5]
-    voltage_grid = np.tile(voltage, (50, 1))
-    ax.imshow(voltage_grid, aspect='auto', cmap=BIOELECTRIC_CMAP, 
-              alpha=0.7, extent=extent, origin='lower')
-    
-    # Add some styling
-    ax.set_title(title)
-    ax.set_xlabel("Spatial Position")
-    ax.set_ylabel("Potential")
-    
-    # Add colorbar
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="3%", pad=0.1)
-    norm = plt.Normalize(vmin=np.min(voltage), vmax=np.max(voltage))
-    plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=BIOELECTRIC_CMAP), 
-                 cax=cax, label="Voltage")
-    
-    return ax
+try:
+    import seaborn as sns
+except ImportError:
+    import matplotlib.pyplot as plt
+    # Create a minimal compatibility layer
+    class SeabornCompatibility:
+        def heatmap(self, data, ax=None, cmap='viridis', annot=False):
+            if ax is None:
+                _, ax = plt.subplots()
+            im = ax.imshow(data, cmap=cmap)
+            plt.colorbar(im, ax=ax)
+            if annot:
+                for i in range(data.shape[0]):
+                    for j in range(data.shape[1]):
+                        ax.text(j, i, f"{data[i, j]:.2f}",
+                                ha="center", va="center", color="w")
+            return ax
+    sns = SeabornCompatibility()
 
-def visualize_ion_gradients(state: BioelectricState, 
-                           fig: Optional[plt.Figure] = None) -> plt.Figure:
-    """
-    Visualize ion gradients across the bioelectric field
-    
-    Args:
-        state: BioelectricState containing ion gradients
-        fig: Optional matplotlib figure to plot on
+def plot_voltage_potential(state, save_path=None, show=False):
+    """Plot voltage potential field from a bioelectric state."""
+    if isinstance(state.voltage_potential, torch.Tensor):
+        voltage = state.voltage_potential.detach().cpu().numpy()
+    else:
+        voltage = state.voltage_potential
         
-    Returns:
-        Matplotlib figure with the plots
-    """
-    if fig is None:
-        fig = plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(voltage.reshape(10, -1), cmap='viridis', annot=False)
+    plt.title('Bioelectric Voltage Potential')
+    plt.tight_layout()
     
-    # Get ion data
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+def visualize_ion_gradients(state, save_path=None, show=False):
+    """Visualize ion gradients from a bioelectric state."""
     ion_names = list(state.ion_gradients.keys())
-    n_ions = len(ion_names)
+    num_ions = len(ion_names)
     
-    # Create subplot grid
-    grid_size = int(np.ceil(np.sqrt(n_ions)))
+    fig, axes = plt.subplots(1, num_ions, figsize=(5*num_ions, 5))
     
-    for i, ion_name in enumerate(ion_names):
-        ax = fig.add_subplot(grid_size, grid_size, i+1)
-        ion_data = state.ion_gradients[ion_name].detach().cpu().numpy()
-        
-        # Plot ion gradient
-        x = np.arange(len(ion_data))
-        ax.plot(x, ion_data, '-', linewidth=2, label=ion_name)
-        ax.set_title(f"{ion_name} Gradient")
-        ax.set_xlabel("Spatial Position")
-        ax.set_ylabel("Concentration")
-        ax.legend()
-        
-        # Add shaded region for visual emphasis
-        ax.fill_between(x, 0, ion_data, alpha=0.3)
-        
-    fig.tight_layout()
-    return fig
-
-def plot_cell_colony(colony_data: Dict, 
-                    fig: Optional[plt.Figure] = None, 
-                    plot_connections: bool = True,
-                    threshold: float = 0.3) -> plt.Figure:
-    """
-    Visualize a cell colony with its connections and states
-    
-    Args:
-        colony_data: Dictionary containing positions, connections, and states
-        fig: Optional matplotlib figure to plot on
-        plot_connections: Whether to plot connections between cells
-        threshold: Minimum connection strength to plot
-        
-    Returns:
-        Matplotlib figure with the colony visualization
-    """
-    if fig is None:
-        fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(111)
-    
-    positions = colony_data['positions']
-    connections = colony_data['connections']
-    states = colony_data['states']
-    
-    # Create network graph
-    G = nx.Graph()
-    
-    # Add nodes with positions
-    for i, pos in enumerate(positions):
-        G.add_node(i, pos=pos)
-    
-    # Add edges with weights
-    if plot_connections:
-        for i in range(len(positions)):
-            for j in range(i+1, len(positions)):
-                if connections[i, j] > threshold:
-                    G.add_edge(i, j, weight=connections[i, j])
-    
-    # Get node positions
-    node_pos = nx.get_node_attributes(G, 'pos')
-    
-    # Calculate node colors based on mean activation
-    node_colors = [np.mean(states[i]) for i in range(len(positions))]
-    
-    # Draw the network
-    edges = G.edges()
-    weights = [G[u][v]['weight'] * 3 for u, v in edges]
-    
-    # Draw nodes
-    nx.draw_networkx_nodes(G, node_pos, node_size=800, 
-                          node_color=node_colors, cmap=BIOELECTRIC_CMAP,
-                          alpha=0.9, ax=ax)
-    
-    # Draw edges
-    if plot_connections and edges:
-        nx.draw_networkx_edges(G, node_pos, edgelist=edges, width=weights, 
-                              edge_color='gray', alpha=0.6, ax=ax)
-    
-    # Add node labels
-    nx.draw_networkx_labels(G, node_pos, font_size=10, 
-                           font_family='sans-serif', ax=ax)
-    
-    # Add colorbar
-    sm = plt.cm.ScalarMappable(cmap=BIOELECTRIC_CMAP, 
-                              norm=plt.Normalize(vmin=min(node_colors), 
-                                               vmax=max(node_colors)))
-    sm._A = []  # Hack to make it work with non-array data
-    cbar = plt.colorbar(sm, ax=ax, label='Cell Activation')
-    
-    # Remove axis
-    ax.set_axis_off()
-    ax.set_title("Cell Colony Network")
+    for i, ion in enumerate(ion_names):
+        if isinstance(state.ion_gradients[ion], torch.Tensor):
+            gradient = state.ion_gradients[ion].detach().cpu().numpy()
+        else:
+            gradient = state.ion_gradients[ion]
+            
+        sns.heatmap(gradient.reshape(10, -1), ax=axes[i], cmap='plasma')
+        axes[i].set_title(f'{ion} gradient')
     
     plt.tight_layout()
-    return fig
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
-def plot_pattern_formation(initial_pattern: np.ndarray, 
-                          final_pattern: np.ndarray,
-                          metrics: Dict,
-                          fig: Optional[plt.Figure] = None) -> plt.Figure:
-    """
-    Visualize pattern formation process and metrics
+def plot_cell_colony(state, save_path=None, show=False):
+    """Plot cell colony from a bioelectric state."""
+    # Implementation depends on how cell colony is represented
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
-    Args:
-        initial_pattern: Starting pattern
-        final_pattern: Pattern after formation process
-        metrics: Dictionary of pattern metrics
-        fig: Optional matplotlib figure
-        
-    Returns:
-        Matplotlib figure with the visualization
-    """
-    if fig is None:
-        fig = plt.figure(figsize=(12, 6))
-    
-    # Plot initial and final patterns
-    ax1 = fig.add_subplot(2, 2, 1)
-    ax1.plot(initial_pattern, 'b-', label='Initial')
-    ax1.set_title("Initial Pattern")
-    ax1.set_xlabel("Position")
-    ax1.set_ylabel("Value")
-    
-    ax2 = fig.add_subplot(2, 2, 2)
-    ax2.plot(final_pattern, 'r-', label='Final')
-    ax2.set_title("Final Pattern")
-    ax2.set_xlabel("Position")
-    ax2.set_ylabel("Value")
-    
-    # Plot pattern change
-    ax3 = fig.add_subplot(2, 2, 3)
-    ax3.plot(initial_pattern, 'b-', alpha=0.5, label='Initial')
-    ax3.plot(final_pattern, 'r-', alpha=0.5, label='Final')
-    ax3.fill_between(range(len(initial_pattern)), 
-                    initial_pattern, final_pattern, 
-                    color='purple', alpha=0.2)
-    ax3.set_title("Pattern Change")
-    ax3.set_xlabel("Position")
-    ax3.set_ylabel("Value")
-    ax3.legend()
-    
-    # Plot metrics
-    ax4 = fig.add_subplot(2, 2, 4)
-    metrics_to_plot = {k: v for k, v in metrics.items() 
-                      if isinstance(v, (int, float))}
-    
-    if metrics_to_plot:
-        y_pos = np.arange(len(metrics_to_plot))
-        values = list(metrics_to_plot.values())
-        labels = list(metrics_to_plot.keys())
-        
-        bars = ax4.barh(y_pos, values, align='center')
-        ax4.set_yticks(y_pos)
-        ax4.set_yticklabels(labels)
-        ax4.set_title("Pattern Metrics")
-        ax4.set_xlim(0, max(1.0, max(values) * 1.1))  # Ensure scale is at least 0-1
-        
-        # Add value labels
-        for i, bar in enumerate(bars):
-            width = bar.get_width()
-            ax4.text(width + 0.01, bar.get_y() + bar.get_height()/2, 
-                    f'{width:.2f}', ha='left', va='center')
-            
-    fig.tight_layout()
-    return fig
+    # Placeholder implementation
+    return None
 
-def create_bioelectric_animation(state_history: List[BioelectricState], 
-                                filename: str = "bioelectric_animation.mp4",
-                                interval: int = 200) -> str:
-    """
-    Create an animation of bioelectric state changes over time
-    
-    Args:
-        state_history: List of BioelectricState objects over time
-        filename: Output filename
-        interval: Time between frames in milliseconds
+def create_bioelectric_animation(state_history, save_path=None, show=False):
+    """Create an animation of bioelectric state changes over time."""
+    # Basic placeholder implementation
+    if not state_history:
+        return None
         
-    Returns:
-        Path to saved animation file
-    """
-    # Setup figure
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Extract voltage data
-    voltage_data = [state.voltage_potential.detach().cpu().numpy() 
-                   for state in state_history]
-    
-    # Find global min/max for consistent colormap
-    v_min = min([np.min(v) for v in voltage_data])
-    v_max = max([np.max(v) for v in voltage_data])
-    norm = plt.Normalize(v_min, v_max)
-    
-    # Initial plot
-    line, = ax.plot(voltage_data[0], 'k-', lw=2)
-    img = ax.imshow(np.tile(voltage_data[0], (50, 1)), 
-                   aspect='auto', cmap=BIOELECTRIC_CMAP, 
-                   alpha=0.7, origin='lower', 
-                   extent=[0, len(voltage_data[0]), v_min, v_max])
-    
-    # Add colorbar
-    cbar = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=BIOELECTRIC_CMAP), 
-                       ax=ax, label="Voltage")
-    
-    # Title with frame counter
-    title = ax.set_title("Bioelectric State: Frame 0")
+    fig, ax = plt.subplots(figsize=(10, 8))
     
     def update(frame):
-        """Update function for animation"""
-        voltage = voltage_data[frame]
-        line.set_ydata(voltage)
-        img.set_data(np.tile(voltage, (50, 1)))
-        title.set_text(f"Bioelectric State: Frame {frame}")
-        return line, img, title
-    
-    # Create animation
-    ani = animation.FuncAnimation(fig, update, frames=len(voltage_data),
-                                blit=True, interval=interval)
-    
-    # Save animation
-    writer = animation.FFMpegWriter(fps=30, metadata=dict(artist='BCM'),
-                                  bitrate=1800)
-    ani.save(filename, writer=writer)
-    
-    plt.close()
-    return filename
-
-def save_state_visualization(state: BioelectricState, 
-                            metrics: Dict, 
-                            filename: str) -> str:
-    """
-    Save visualization of bioelectric state to file
-    
-    Args:
-        state: BioelectricState to visualize
-        metrics: Dictionary of metrics to display
-        filename: Output filename
+        ax.clear()
+        state = state_history[frame]
+        if isinstance(state.voltage_potential, torch.Tensor):
+            voltage = state.voltage_potential.detach().cpu().numpy()
+        else:
+            voltage = state.voltage_potential
+        sns.heatmap(voltage.reshape(10, -1), ax=ax, cmap='viridis', annot=False)
+        ax.set_title(f'Frame {frame}')
         
-    Returns:
-        Path to saved visualization
-    """
-    fig = plt.figure(figsize=(12, 10))
+    anim = FuncAnimation(fig, update, frames=min(30, len(state_history)), interval=200)
     
-    # Plot voltage potential
-    ax1 = fig.add_subplot(2, 2, 1)
-    plot_voltage_potential(state, ax=ax1)
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        anim.save(save_path, writer='ffmpeg', fps=5)
     
-    # Plot ion gradients (simplified to fit this subplot)
-    ax2 = fig.add_subplot(2, 2, 2)
-    ion_names = list(state.ion_gradients.keys())
-    for ion_name in ion_names:
-        ion_data = state.ion_gradients[ion_name].detach().cpu().numpy()
-        ax2.plot(ion_data, label=ion_name)
-    ax2.set_title("Ion Gradients")
-    ax2.set_xlabel("Spatial Position")
-    ax2.set_ylabel("Concentration")
-    ax2.legend()
-    
-    # Plot morphological state
-    ax3 = fig.add_subplot(2, 2, 3)
-    morphology = state.morphological_state.detach().cpu().numpy()
-    ax3.plot(morphology)
-    ax3.set_title("Morphological State")
-    ax3.set_xlabel("Component")
-    ax3.set_ylabel("Value")
-    
-    # Plot metrics
-    ax4 = fig.add_subplot(2, 2, 4)
-    # Filter for scalar metrics
-    scalar_metrics = {k: v for k, v in metrics.items() 
-                     if isinstance(v, (int, float))}
-    
-    if scalar_metrics:
-        # Create bar chart of metrics
-        y_pos = np.arange(len(scalar_metrics))
-        values = list(scalar_metrics.values())
-        labels = list(scalar_metrics.keys())
-        
-        bars = ax4.barh(y_pos, values, align='center')
-        ax4.set_yticks(y_pos)
-        ax4.set_yticklabels(labels)
-        ax4.set_title("Bioelectric Metrics")
-        ax4.set_xlim(0, max(1.0, max(values) * 1.1))
-        
-        # Add value labels
-        for i, bar in enumerate(bars):
-            width = bar.get_width()
-            ax4.text(width + 0.01, bar.get_y() + bar.get_height()/2, 
-                    f'{width:.2f}', ha='left', va='center')
-    
-    # Ensure output directory exists
-    os.makedirs(os.path.dirname(os.path.abspath(filename)), exist_ok=True)
-    
-    plt.tight_layout()
-    plt.savefig(filename, dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    
-    return filename
-
-def plot_multi_state_comparison(states: List[BioelectricState],
-                               labels: List[str],
-                               filename: Optional[str] = None) -> plt.Figure:
-    """
-    Compare multiple bioelectric states side by side
-    
-    Args:
-        states: List of BioelectricState objects to compare
-        labels: Labels for each state
-        filename: Optional filename to save the plot
-        
-    Returns:
-        Matplotlib figure with the comparison
-    """
-    fig, axes = plt.subplots(len(states), 1, figsize=(10, 3*len(states)))
-    if len(states) == 1:
-        axes = [axes]
-        
-    for ax, state, label in zip(axes, states, labels):
-        voltage = state.voltage_potential.detach().cpu().numpy()
-        ax.plot(voltage, 'k-', linewidth=1.5)
-        ax.set_title(f"{label}")
-        ax.set_xlabel("Position")
-        ax.set_ylabel("Voltage")
-        
-        # Add heatmap visualization below the line
-        extent = [0, len(voltage), np.min(voltage) - 0.5, np.max(voltage) + 0.5]
-        voltage_grid = np.tile(voltage, (20, 1))
-        ax.imshow(voltage_grid, aspect='auto', cmap=BIOELECTRIC_CMAP, 
-                 alpha=0.7, extent=extent, origin='lower')
-    
-    plt.tight_layout()
-    
-    if filename:
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
-        
-    return fig
-
-def plot_goal_signals(goal_signals: torch.Tensor,
-                     goal_names: List[str] = None,
-                     ax: Optional[plt.Axes] = None) -> plt.Axes:
-    """
-    Visualize goal activation signals
-    
-    Args:
-        goal_signals: Tensor of goal activation values
-        goal_names: Optional list of goal names
-        ax: Optional matplotlib axis
-        
-    Returns:
-        Matplotlib axis with the plot
-    """
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 5))
-        
-    # Convert to numpy
-    if isinstance(goal_signals, torch.Tensor):
-        goal_values = goal_signals.detach().cpu().numpy()
+    if show:
+        plt.show()
     else:
-        goal_values = np.array(goal_signals)
-        
-    # Create goal names if not provided
-    if goal_names is None:
-        goal_names = [f"Goal {i+1}" for i in range(len(goal_values))]
-        
-    # Create horizontal bar chart
-    y_pos = np.arange(len(goal_values))
-    
-    # Sort by value for better visualization
-    sorted_indices = np.argsort(goal_values)
-    sorted_values = goal_values[sorted_indices]
-    sorted_names = [goal_names[i] for i in sorted_indices]
-    
-    # Create bars with gradient colors
-    cmap = plt.cm.get_cmap('viridis')
-    colors = [cmap(v/max(1.0, max(sorted_values))) for v in sorted_values]
-    
-    bars = ax.barh(y_pos, sorted_values, align='center', color=colors)
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(sorted_names)
-    ax.set_title("Goal Activation Signals")
-    ax.set_xlabel("Activation Strength")
-    
-    # Add value labels
-    for i, bar in enumerate(bars):
-        width = bar.get_width()
-        ax.text(width + 0.01, bar.get_y() + bar.get_height()/2, 
-               f'{width:.2f}', ha='left', va='center')
-        
-    return ax
+        plt.close()
 
-def create_state_heatmap(state_matrix: np.ndarray,
-                        row_labels: List[str],
-                        col_labels: List[str],
-                        title: str = "State Heatmap",
-                        filename: Optional[str] = None) -> plt.Figure:
+def plot_pattern_formation(morphological_state, time_steps=None, save_path=None, show=False):
     """
-    Create a heatmap visualization of state data
+    Plot pattern formation over time or at a specific time step.
     
     Args:
-        state_matrix: 2D numpy array of state values
-        row_labels: Labels for rows (e.g., components)
-        col_labels: Labels for columns (e.g., time points)
-        title: Plot title
-        filename: Optional filename to save the plot
-        
-    Returns:
-        Matplotlib figure with the heatmap
+        morphological_state: Either a single state or a list of states over time
+        time_steps: Time points for the states (if applicable)
+        save_path: Path to save the visualization
+        show: Whether to display the plot
     """
-    # Set up figure
-    fig, ax = plt.subplots(figsize=(12, 8))
+    plt.figure(figsize=(12, 8))
     
-    # Create heatmap
-    sns.heatmap(state_matrix, annot=False, cmap=BIOELECTRIC_CMAP,
-               linewidths=0.5, ax=ax)
-    
-    # Add labels
-    ax.set_xticklabels(col_labels, rotation=45, ha='right')
-    ax.set_yticklabels(row_labels, rotation=0)
-    
-    ax.set_title(title)
-    
-    # Add colorbar label
-    cbar = ax.collections[0].colorbar
-    cbar.set_label('Value')
-    
-    # Save if filename provided
-    if filename:
-        plt.tight_layout()
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
+    if isinstance(morphological_state, list):
+        # Plot pattern evolution over time
+        if time_steps is None:
+            time_steps = list(range(len(morphological_state)))
+            
+        for i, state in enumerate(morphological_state):
+            if isinstance(state, torch.Tensor):
+                state_np = state.detach().cpu().numpy()
+            else:
+                state_np = state
+                
+            # Reshape to 2D if needed for visualization
+            if len(state_np.shape) == 1:
+                side_length = int(np.sqrt(state_np.shape[0]))
+                if side_length**2 == state_np.shape[0]:  # Perfect square
+                    state_np = state_np.reshape(side_length, side_length)
+                else:
+                    # Just create a roughly square shape
+                    side1 = int(np.sqrt(state_np.shape[0]))
+                    side2 = state_np.shape[0] // side1
+                    state_np = state_np.reshape(side1, side2)
+            
+            plt.subplot(1, len(morphological_state), i+1)
+            sns.heatmap(state_np, cmap='viridis', annot=False)
+            plt.title(f'Time: {time_steps[i]}')
+    else:
+        # Plot a single state
+        if isinstance(morphological_state, torch.Tensor):
+            state_np = morphological_state.detach().cpu().numpy()
+        else:
+            state_np = morphological_state
+            
+        # Reshape to 2D if needed
+        if len(state_np.shape) == 1:
+            side_length = int(np.sqrt(state_np.shape[0]))
+            if side_length**2 == state_np.shape[0]:  # Perfect square
+                state_np = state_np.reshape(side_length, side_length)
+            else:
+                # Just create a roughly square shape
+                side1 = int(np.sqrt(state_np.shape[0]))
+                side2 = state_np.shape[0] // side1
+                state_np = state_np.reshape(side1, side2)
         
-    return fig
+        sns.heatmap(state_np, cmap='viridis', annot=False)
+        plt.title('Morphological Pattern')
+    
+    plt.tight_layout()
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()
 </bcm/utils/visualization.py>
 
 <bcm/utils/__init__.py>
 """
-Utility functions for the Bioelectric Consciousness Module.
+Utility modules for the bioelectric consciousness module.
+Includes visualization tools, metrics, and data processing utilities.
 """
+
 from bcm.utils.metrics import (
     calculate_pattern_stability,
     calculate_bioelectric_entropy,
@@ -1891,11 +1703,13 @@ from bcm.utils.metrics import (
     calculate_goal_alignment,
     summarize_bioelectric_state
 )
+
+# Import visualization tools
 from bcm.utils.visualization import (
     plot_voltage_potential,
     visualize_ion_gradients,
-    plot_cell_colony,
     plot_pattern_formation,
+    plot_cell_colony,
     create_bioelectric_animation
 )
 
@@ -2008,6 +1822,434 @@ experiment:
   recovery_measure_interval: 10
 
 </configs/simulation_params.yaml>
+
+<docs/short_article_about_levins_seminar.md>
+## Collective Intelligence of Cells: Bioelectric Communication, Morphogenesis, and Cognition
+
+### Introduction
+
+Alan Turing, the pioneering computer scientist, famously explored both artificial intelligence and
+the chemical basis of morphogenesis. In doing so, he hinted at a profound connection between
+the self-creation of minds and the self-creation of bodies. Modern developmental biology
+supports this connection: the processes that build an embryo’s body and those that give rise to
+cognition are deeply intertwined. Understanding how a collection of cells assembles itself into a
+complex organism may be key to understanding how minds emerge from matter.
+In this seminar, we explore how living cells form cooperative networks that solve problems,
+create body structures, and even remember goals. Four broad themes will be addressed. First, we
+survey remarkable examples of biological intelligence – cases where organisms show
+surprising plasticity and problem-solving in building or repairing their bodies. Next, we discuss
+cellular intelligence as a theoretical framework, examining how individual cells and tissues
+exhibit goal-directed behavior across scales. We then examine **bioelectric communication** as a
+means by which cells coordinate growth and form, and how we can intercept these signals to
+alter anatomy. Finally, we consider the **philosophy of cognition**, asking what these biological
+insights mean for understanding minds and for the future creation of novel life forms.
+Throughout, the focus is on how biology composes agents – cells and tissues with agendas – into
+larger intelligent systems, and what this means for regenerative medicine, cognitive science, and
+even ethics in a world of new hybrid creatures.
+
+### Examples of Biological Intelligence
+
+Living organisms routinely accomplish morphological feats that resemble problem-solving. A
+number of striking examples illustrate how cells and tissues can adapt to novel circumstances in
+pursuit of a structural goal:
+
+- **Transplanted Eye Function:** Tadpoles normally have eyes connected to their brain’s
+  visual center, yet if an eye bud is transplanted onto a tadpole’s tail (far from the brain),
+  the animal can still see through that eye. Despite the eye forming in an unusual location
+  with a misrouted optic nerve, the nervous system finds a way to make it functional. This
+  suggests the tadpole’s body is not hardwired only for the “standard” anatomy – instead, it
+  is a **problem-solving agent** that can adapt its wiring to make use of available organs.
+
+- **Memory in Regenerating Worms:** Planarian flatworms can be trained to prefer certain
+  environments, such as specific textures when seeking food. Remarkably, if a trained
+  planarian is decapitated, the tail fragment (with no brain) remains inactive for about a
+  week until it regenerates a new head. Once a new brain grows, the worm resumes activity
+  and **retains the memory** of its training. This means the information was stored in the body and imprinted onto the new brain. The memory survived decapitation, indicating
+  that learned information is distributed in tissues beyond just the brain.
+
+- **Insect Wing Deception:** Some organisms use their bodies to run “virtual simulations”
+  that solve ecological problems. One species of fly, for example, has distinctive wing
+  markings and movements that mimic the appearance of scurrying ants. By moving its
+  patterned wings in a certain way, the fly convinces predators it is an ant (which many
+  predators avoid). In essence, the fly’s wings serve as a low-resolution display, **virtually embodying** a different creature to keep the fly safe. This adaptation shows the ingenuity
+  of evolution in equipping even small organisms with behavioral tricks that virtually solve
+  threats.
+
+- **Self-Correcting Frog Development:** As tadpoles metamorphose into frogs, their facial
+  organs (eyes, jaws, nostrils, etc.) must move to new positions. One might think this is a
+  rigid, pre-programmed sequence. To test this, researchers created “Picasso tadpoles” with
+  scrambled face anatomy – eyes on the tail, mouth on the side, etc.. Astonishingly, these
+  tadpoles still morphed into near-normal frogs. Organs navigated through unusual paths,
+  moving until the correct frog face configuration was achieved. They did not stop in
+  wrong places or follow a fixed route. Instead, the cells and tissues pursued a
+  **developmental goal** (the standard frog layout) by whatever route necessary, minimizing
+  error until the target pattern was reached. This implies that genetics does not encode a
+  rigid series of movements, but rather an **error-minimizing process** – a feedback loop
+  that assesses current versus goal anatomy and adjusts accordingly.
+
+- **Antler Injury Memory:** Deer regenerate their antlers every year, regrowing complex
+  structures of bone, vasculature, and nerves. Experiments showed that if an injury or notch
+  is made at a specific location on a developing antler, the next set of antlers will
+  unexpectedly grow an extra branch at that prior injury site. The deer’s body somehow
+  **remembers the location of damage** months later when rebuilding the antlers, resulting
+  in an anatomical “mark” of the past event. This memory is not genetic – it is formed
+  within the cells of the growing antler and persists through the antler shedding cycle. Such
+  **tissue memory** of an injury highlights how information can be stored in bodily form and
+  used later to alter growth patterns.
+
+- **Wasp-Induced Plant Galls:** An oak tree’s genome reliably produces oak leaves from
+  each bud. Yet a parasitic wasp can inject signals that **hack the development** of the oak,
+  causing it to grow a bulbous gall structure instead of a flat leaf. These galls can be highly
+  complex, sometimes colorful and spiky or uniquely shaped, and they house the wasp’s
+  larvae. The wasp’s signals reveal that the oak’s cells had the latent **competency** to form
+  many shapes, not just leaves. In other words, the plant’s developmental program is
+  **reprogrammable** – with new instructions, its cells collaboratively construct a structure
+  outside their normal repertoire. This implies that what a genome encodes is not a single
+  hardwired outcome, but a default outcome that can be diverted by alternative signals. If
+  we learn to communicate the right signals, we too might induce cells to build novel
+  structures for our purposes, much as the wasp does.
+
+Taken together, these examples demonstrate that living systems are not rigid machines simply
+executing a genetic blueprint. Rather, they behave as adaptive, **goal-seeking collectives**.
+Tadpole bodies make creative use of organs in odd places; worms store and recall information
+across radical body changes; cells coordinate to correct disruptions and remember past events.
+
+Biology shows an impressive plasticity and problem-solving capacity, suggesting that even cells
+and tissues possess a kind of primitive intelligence oriented toward building and maintaining the
+correct anatomy. This sets the stage for asking how such intelligence is implemented and how we
+might interact with it.
+
+### Cellular Intelligence and Multi-Scale Organization
+
+How do cells, which individually have only local awareness, come together to create a
+centralized organism or even a mind? The key is to recognize that each level of biological
+organization – from molecular networks within one cell up through organs and whole organisms
+– has agent-like properties. In other words, life is organized as a multi-scale competency
+architecture. At every level, components are trying to accomplish goals in their respective
+spaces.
+
+Even a single cell can be surprisingly sophisticated. For instance, a single-celled organism like
+_Lacrymaria_ (a protist) hunts prey by extending and contracting a snakelike “neck,” effectively
+handling sensory input, movement, and feeding – all without a nervous system. Within each cell,
+complex biochemical networks regulate activity. In fact, molecular circuits (gene regulatory
+networks, signaling pathways, etc.) can exhibit learning and memory at the sub-cellular level.
+Experiments have shown that even simple gene networks are capable of forms of learning such
+as habituation and Pavlovian conditioning. Thus, basal cognition exists at the level of molecular
+biology. Each cell contains components that sense and respond to conditions, adapting their state
+based on past stimuli.
+
+Multicellular bodies like ours are therefore **collective intelligences**. Our 37 trillion cells
+cooperate to produce a unified organism, but each cell has its own agenda (survival, growth, etc.)
+and competencies (the liver cell can regulate blood chemistry, neurons can process signals,
+immune cells can learn to recognize invaders). During embryonic development, there is no single
+moment when “mind” appears – a fertilized egg gradually self-assembles into a thinking
+organism without a sharp threshold. The process from physics to mind is continuous. In our own
+life history, we all journeyed from being a single cell to an adult with a complex brain, gaining
+cognitive ability gradually along the way.
+
+Crucially, there isn’t truly “one brain” at the top – even the brain is made of many smaller agents
+(cells), which in turn are made of molecular networks. Philosopher René Descartes assumed the
+human mind must have a single locus (he fancied the pineal gland as the seat of the soul because
+it is singular). But microscopes revealed the pineal gland is composed of many cells, each cell a
+world of molecular activity. In reality, **there is no single indivisible control center** – instead, at every scale we find networks of competent units. Biology is **“fractal” intelligence**, with
+problem-solving at nested levels.
+
+What defines intelligence in this context? A useful definition, from psychologist William James,
+is the **ability to reach the same goal by different means**. By this definition, even cell clusters
+exhibit intelligence: they achieve target outcomes (like correct anatomy) despite perturbations.
+They can improvise and adjust actions when conditions change. We saw examples of this in the
+previous section: an embryo cut in half can still form two smaller, complete organisms rather than a half-formed one, demonstrating that development can adapt to a new starting state and still
+reach the goal of a whole body. Similarly, a salamander’s cells regrow a perfect limb after
+amputation, stopping precisely when the limb is complete. These are instances of anatomic goal-
+seeking. The cells do not simply grow tissue blindly; they measure progress and know when the
+correct shape has been achieved.
+
+This kind of intelligence operates in spaces that we humans do not intuitively perceive. We are
+accustomed to recognizing agency in animals moving through three-dimensional space (for
+example, a dog navigating a maze). But cellular collectives navigate **physiological and anatomical spaces**. For example, during development, cells move the embryo through **morphospace** – the space of possible anatomical configurations – from a single cell state toward a species-specific body plan. This journey is remarkably reliable and robust, yet not rigid. If knocked off course (by cutting an embryo in two, for instance), cells can still find a path to a complete body. That reliability is not just due to genetic programming – it is due to feedback, communication, and collective decision-making among cells about how to reach the goal shape.
+
+Some organisms retain lifelong anatomical plasticity. The axolotl (a type of salamander) can
+regenerate eyes, jaws, portions of its brain, even as an adult. Every time it loses a limb or organ,
+cells at the injury site work together to rebuild exactly what was lost and then stop. Notably, they
+**know when to stop** – regeneration ceases once a correct limb has been reformed, indicating that
+cells know the target pattern and recognize when it is achieved. In one experiment from the
+1950s, a tail was grafted onto an axolotl’s flank. Instead of simply keeping a misplaced tail, over
+time the extra tail gradually **remodeled itself into a limb** to better match the overall body plan.
+The cells in the tail, finding themselves in an unusual context, collectively decided to transform
+their structure into a leg (including forming toes at the tip) so that the animal ends up with a
+more coherent anatomy. This is a stunning example of collective cellular intelligence: the system
+had no evolutionary precedent for “tail on the side of body,” yet the cells innovated a solution
+(change tail to leg) to restore anatomical harmony.
+
+These observations lead to an important concept: **the body possesses a kind of memory and decision-making apparatus for shape**. We can think of the correct anatomy as an “attractor”
+state in a complex state space, and the cells as working to get the body to that attractor. They
+have **embodied memories of the target morphology**. We normally think of memory as a
+nervous system function (brain memory), but developmental and regenerative biology suggest
+there are non-neural memories of shape. We saw that planarian flatworms can hold two different
+“internal visions” of what their body should be (one head vs. two heads), and this latent
+information only manifests upon regeneration. Likewise, the salamander’s cells “remember” that
+a tail does not belong on the side of the body and act to eliminate it by converting it to a limb. In
+each case, cellular networks store a representation of the correct structure and compare current
+conditions to this goal state, much like how a brain might hold a goal and guide the organism’s
+actions to achieve it.
+
+In summary, cells and tissues are **agents navigating space toward a goal**. Embryogenesis and
+regeneration are not just mechanical processes but informational processes, wherein cells
+communicate, make decisions, and perform actions to minimize error relative to a species-
+specific ideal form. Our bodies are built by **collections of microscopic problem-solvers** employing feedback loops and stored target states. This perspective of cellular intelligence
+reframes development as a kind of collective cognition. Next, we examine how cells
+communicate to coordinate these complex projects, focusing on bioelectric signals as the
+language of cellular collectives.
+
+### Bioelectric Communication
+
+One of the primary ways cells coordinate their activity and remember target shapes is through
+**bioelectric signals**: flows of ions that create voltage gradients across cell membranes. While
+neurons use electrical impulses to process information in the brain, it turns out that non-neural
+cells throughout the body also use electrical potentials to communicate and organize structure. In
+fact, the use of bioelectric networks is **ancient** – it arose long before specialized brains, dating back to early single-celled organisms and bacterial communities. Every cell in the body has ion channels that regulate its voltage, and neighboring cells are often connected by junctions that
+allow currents to flow between them. Thus, all cells form electrical networks reminiscent of
+neural networks, just slower in timescale.
+
+We can draw an analogy between the brain and the rest of the body: **the brain’s electrical network controls behavior** (muscle movements through 3D space), whereas the **body’s electrical network controls anatomy** (cell movements and growth through morphospace). Both
+systems store information and make decisions via electrical patterns. Evolutionarily, what likely
+happened is that the ancient bioelectrical machinery used for anatomical control was co-opted
+and elaborated to form fast-thinking brains for behavioral control. The fundamental trick is the
+same: use voltage-based communication as a **cognitive glue** to bind individual cells into a
+unified problem-solving system. Just as neurons share electrical signals to represent goals (like
+finding food) and achieve them by moving the body, all cells can share electrical signals to
+represent anatomical goals (like “build one head here”) and achieve them by moving tissues,
+changing gene expression, or other growth-related actions.
+
+To understand these bioelectric conversations, my lab and others have developed techniques to
+**read and write the bioelectric code** that cells use. On the reading side, we use voltage-sensitive
+dyes and fluorescence imaging to visualize the electrical state of cells in vivo. For example, we
+can bathe an early frog embryo in a voltage-sensitive dye and film the dynamic voltage patterns
+across its cells. This produces an “electrical map” of the embryo – a literal illumination of which
+cells are more electrically charged (depolarized) or less (hyperpolarized) at any given time.
+
+When we do this, we see that well before anatomical features form, there are **electrical prepatterns** that anticipate the final layout. In a frog embryo, for instance, we can detect an
+**“electric face”** pattern: a specific arrangement of voltage regions that predicts where the facial
+features will form. A cluster of cells with a particular voltage marks the future eye, another
+region marks the future mouth, and so on – appearing **before** the genes and tissues visibly create
+those organs. Disrupting this bioelectric pattern can lead to malformed faces, indicating that the
+pattern is not just a passive marker but a **functional instructive signal** guiding development.
+Voltage imaging also reveals that groups of cells (or even separate embryos in proximity)
+communicate electrically. For example, if one embryo in a cluster is injured, an electrical injury
+signal propagates to neighboring embryos, alerting them to the disturbance. This shows bioelectric signaling can operate on a tissue and whole-organism level, coordinating responses
+across distances.
+
+Reading the bioelectric state is only half the story – we also want to **rewrite those patterns** to
+see if we can direct cells to build particular structures. Importantly, we do not use gross electrical shocks or external fields; instead, we act through the same molecular mechanisms cells use. By manipulating ion channels (through drugs, genetic tools, or light-activated channels in
+optogenetics), we can set regions of tissue to a desired voltage state or alter the connectivity of
+the electrical network. In essence, we hack the electrical communication interface of the cells.
+This approach is analogous to sending new instructions over the cells’ own signaling network.
+We can tell cells things like “you are an eye” or “make two heads” by imitating the bioelectric
+cues for those outcomes, without altering any genes directly.
+
+One example of this “biological programming” involves inducing a complete eye outside the
+head. Recall the frog embryo’s electric face map has a distinct voltage signature where the eye
+will form. We asked: if we reproduce that voltage signature in a different location, will cells
+build an eye there? To test this, we injected frog embryos with mRNA encoding certain ion
+channels that produce the same localized voltage seen in normal eye-forming cells. By targeting
+this injection to cells fated to become part of the gut, we were able to create a little patch of gut
+cells that had an “eye” voltage profile. Incredibly, those cells proceeded to form a functional
+ectopic eye – complete with lens, retina, optic nerve – in the middle of the gut tissue. The gut
+cells, which would never normally make eye tissues, followed the bioelectric instruction to build
+an eye. This experiment demonstrates a few crucial points. **(A)** The bioelectric pattern is indeed
+instructive, not just a reflection of ongoing gene activity – by setting a new pattern, we altered
+cell fate and anatomy. **(B)** The control is very high-level and modular: we did not micromanage
+any of the details (we did not specify lens vs. cornea genes, or direct the optic nerve wiring). All
+we did was trigger a subroutine call – essentially “build an eye here” – and the cells executed the
+entire eye-building program downstream. This reveals that cells have many latent subroutines
+(like “build eye,” “build limb”) that can be called into action by the right cues, without needing
+to rewrite the genome or provide step-by-step instructions. **(C)** The system can adjust to make
+the result anatomically correct. In cases where only a very small number of cells were initially
+triggered (too few to form a complete eye on their own), those cells **recruited their neighbors**
+to contribute, until enough tissue was assembled to form a proper eye. The cells collectively
+knew that an eye requires a certain minimum size and complexity, and they cooperated to
+achieve that, pulling in uninjected cells to help. We did not have to teach them this; it is an
+intrinsic capability of the cell collective.
+
+Another dramatic example comes from manipulating the body plan of flatworms (planaria).
+Normally, planaria have one head at the top and a tail at the end. If you cut a planarian in half,
+each piece regenerates exactly the missing parts: the head piece regrows a tail and the tail piece
+regrows a head, yielding two one-headed worms. This implies the tissues know “one head, one
+tail” is the correct pattern. We found that this pattern is stored in the worm’s bioelectric network.
+By using drugs to change ion channel states, we could **rewrite the electrical pattern** to one that
+corresponds to “two heads”. At first, nothing visibly changed – the treated worm still looked
+normal (one head) and even its gene expression for head-tail polarity was unchanged. However,
+the worm now carried a latent 2-head pattern internally. When we then amputated the worm, the cells referred to their internal pattern memory and regenerated what they “believed” a correct
+worm should be – and produced a two-headed worm (one head at each end). This shows that the
+bioelectric pattern was acting as a morphological memory guiding regeneration. The normal
+worm retained a counterfactual idea (“I should have two heads”) that only manifested when
+regeneration was triggered.
+
+Furthermore, this induced change is long-lasting and heritable at the tissue level. The two-headed
+worm, if cut again, will regenerate two-headed offspring repeatedly – the pattern **persists
+indefinitely** until we reset it back to normal. All the while, the worm’s genome is unchanged;
+these are wild-type planaria with a rewritten pattern memory. We also showed we can toggle it
+back to one-head when desired, proving it is a stable yet reversible memory state. Essentially, the
+tissue has a **rewritable memory store** for the anatomical layout, analogous to RAM in a
+computer (but implemented in bioelectric circuits). It meets criteria for memory: long-term
+stability, discrete representational states (one head vs two heads), conditional recall (expressed
+upon injury), and rewritability.
+
+Our interventions can even coax cells to build anatomies belonging to other species. By altering
+the bioelectric signals during planarian regeneration, we induced one species of flatworm to
+grow a head shape appropriate to a different species – for example, round heads or narrow heads
+that normally only occur in other worms with divergent genomes. Remarkably, the brains inside
+those heads and the distribution of stem cells also corresponded to the target species’ pattern. In
+other words, without any genomic changes, a worm with species A DNA formed the morphology
+of species B. We can even generate forms that don’t exist in nature – entirely novel shapes like
+spiky forms or cylindrical worms – by navigating the cells through novel paths in morphospace.
+The cellular hardware (the genome and cell machinery of species A) is clearly capable of many
+outcomes. The specific outcome realized depends on the bioelectric **patterning instructions** that
+guide the collective of cells. Evolution naturally biases a default pattern (one head of species-
+typical shape), but we see that the latent capacity is much broader. The electrical network in
+effect chooses among different **attractor states** in the anatomical possibility space – some
+corresponding to known species and some to never-before-seen organisms. By learning to
+communicate with this network, we gain the ability to **direct the self-assembly of living tissue**
+toward desired outcomes, from regenerative repair (e.g. encouraging a limb to regrow) to
+creating synthetic organisms with novel anatomies.
+
+These examples illustrate that cellular collectives are not mere robots of the genome; they have
+their own informational layer that can be programmed. The genome provides the parts and
+default wiring, but the electric circuit formed by cells can store physiological **setpoints** and
+large-scale **action plans** (like “construct one head of such-and-such shape”). We as bioengineers
+can tap into this layer to control growth and form without gene editing, by speaking the
+bioelectric language. This has huge implications for regenerative medicine (e.g., inducing tissues
+to regrow or repair), birth defect correction, and even bioengineering of new forms of life. But it
+also raises deeper questions: Why are living tissues able to do this in the first place? What does it
+say about the nature of biological information and the origin of complex shape? To answer that,
+we need to consider the fundamental principles that make the cellular collective so agential and
+plastic.
+
+### Philosophy of Cognition
+
+Living systems taught us that evolution does not build static solutions – it builds agential
+material that can solve problems on the fly. Unlike human-designed machines, which operate on
+reliable hardware with narrow parameters, biology thrives with unreliable components and
+unpredictable environments. A developing embryo cannot guarantee exactly how many cells it
+will have, what the precise nutrient conditions are, or that every gene is perfectly error-free.
+Thus, life leans into **robust, goal-directed plasticity** as a strategy. It makes collections of cells that can adjust, compensate, and keep working toward the anatomical goal even when
+perturbations occur. In essence, evolution trained cells to be little problem-solvers because it had
+to – there is too much variability in the real world for a rigid program to succeed. This stands in
+contrast to how we design computers, where we enforce exacting reliability in circuits and code.
+Biology’s **computing substrate is noisy and variable**, so its architectures emphasize continual,
+creative adjustment rather than fixed algorithms.
+
+A consequence is that biological systems do not **overfit to past environments** – they are, by
+necessity, generalists capable of novel responses. For instance, no salamander ever evolved
+specifically to handle “tail grafted to side,” yet the cells could address that scenario anyway (by
+generating a limb). Evolution provided cells with a repertoire of subroutines and the autonomy to
+deploy them as needed, rather than a rigid script. We have termed this perspective
+**polycomputing**: in living systems, there isn’t a single canonical interpretation of information.
+Instead, multiple layers of the system interpret signals in their own context. Different
+“observers” (molecules, cells, organs) simultaneously make sense of the same physical events in
+different ways. What a signal “means” is context-dependent and can be repurposed. For example,
+a transient calcium ion spike might mean one thing to a local gene network (perhaps “activate
+wound repair genes”) and something else to the organism-level system (perhaps “this region is
+building an eye”). Both meanings can coexist. The history or origin of a signal is less important
+than the current use that the collective intelligence finds for it. In biology, **only the future (the goal state) matters** – past “intent” of a signal is irrelevant if the system can reinterpret it toward current needs. We see this in metamorphosis: the stored memories from a caterpillar are partially repurposed by the butterfly that emerges, even though the butterfly has a new body and lifestyle. The information was not kept for nostalgia – it was translated into a form useful for the new organism (e.g., a visual cue that meant “food source” in the caterpillar’s context might be carried over as an abstract association that the butterfly can link to its own feeding strategy). The
+caterpillar’s brain basically dissolves in the pupal stage, yet some memories persist in the rebuilt
+butterfly brain. This implies an impressive transfer learning: the biological system didn’t just
+save raw data, it generalized it to a new hardware and behavioral context. The persistence and
+remapping of memory through metamorphosis underscores how life prioritizes useful continuity
+of goals over exact preservation of form.
+
+Such capabilities push us to expand our definition of embodiment and cognition. A system
+doesn’t need a traditional “body” to have an embodiment – it only needs to have a space of states
+it can navigate and sensors/actions to move in that space. A machine learning program, for
+instance, navigating a space of possible solutions has an embodiment in that abstract space.
+Similarly, an organoid (a tiny lab-grown collection of cells) with no moving limbs is
+nevertheless embodied in the space of gene expression and metabolism. We normally call something “embodied” if it moves in 3D space, but from the perspective of intelligence, embodiment is the closed-loop interaction with any set of states. This broad view erases the sharp line between “living” and “machine” intelligence. Even software agents have some form of
+embodiment (in virtual or data spaces), and conversely, living cells have “bodies” in biochemical
+state space that they regulate.
+Looking ahead, the distinction between evolved organisms and designed machines will further
+blur. We already can **mix and match evolved and engineered components** at multiple scales:
+genetically modified organisms, biohybrid devices, cyborg tissues, etc. As we introduce more
+designed elements into living systems (and vice versa), we will create chimeric beings that
+challenge our categories. What do we call a culture of human brain cells connected to a silicon
+AI? Or an embryo with some computer-designed organs? Traditional metrics (like percent of
+DNA from humans) will fail – we will get entities that are part human, part machine, part
+something entirely new. We may need to abandon the idea of a clear boundary of “humanness”
+or even “life.” Instead, we will face a **spectrum of cognitive agents**, from modified animals to
+intelligent organoids to self-assembling xenobots, all the way to purely digital intelligences.
+
+To navigate this future, we must develop a new ethics and cognition framework. We will need
+the tools to **predict the behavior and capacities of novel creatures** that have no evolutionary
+precedent. Currently, biology extrapolates an organism’s likely behavior from its closest
+relatives on the tree of life. But when a truly novel composite agent comes along (one with no
+close relatives), how will we know its drives or understanding? We need to identify invariant
+principles of intelligence that apply to any medium. The study of the “latent space” of possible
+body-minds can help here. Just as the mathematical function in a fractal can generate endless
+complex images (patterns not explicitly drawn by anyone but inherent in the math), the rules of
+cells and evolution harbor a latent space of possible forms and behaviors. Our work with planaria
+and xenobots suggests that life’s potential forms can be systematically explored. We use
+**synthetic organisms like xenobots and anthrobots as tools to probe this space**. Xenobots, for
+example, are clusters of frog skin cells that we assembled into novel shapes (little living
+spheres). These cell clusters, never seen in nature, spontaneously behaved like miniature
+organisms: they swam around, cooperated, and even exhibited **kinematic self-replication** –
+gathering loose cells to form a new spheroid that matured into another mobile xenobot. This
+behavior was not programmed by us or directly selected by evolution; it emerged from the
+interaction of cells in a new context. The xenobots repeatedly built next-generation copies of
+themselves, showing that even basic living cells can achieve something as conceptually
+advanced as self-replication when placed in appropriate circumstances. Their **motives and skills were latent** in the frog genome (which normally would never have these cells doing such a task).
+This reinforces the idea that evolution often produces components with general competencies
+that can be reactivated in novel contexts.
+
+It may be that the space of all possible anatomies and behaviors – a sort of **Platonic space of biological forms** – contains not only shapes, but perhaps even templates for minds. The
+conjecture here (admittedly speculative) is that some patterns of information processing, which
+we would recognize as cognition or intelligence, are natural attractors in this space. Life in the
+universe could “discover” these patterns by evolving into them, much as mathematicians
+discover eternal truths rather than inventing them. If so, truly novel beings might still fall into recognizable categories of mind (just as our planar cells fell into the category of “build an eye”
+when given the right trigger, or xenobot cells fell into “replicator” behavior). Our job is to
+prepare for a world populated by an **ecosystem of diverse intelligences**, only some of which
+came from traditional evolution. We must develop a **“cognitive spectrum”** view, akin to the
+electromagnetic spectrum: just as infrared, visible light, and X-rays are all electromagnetic
+waves differing only in frequency, so too might machine learning agents, organoid brains, and
+animal minds all be points on a continuum of mind. Our intuitions (our native perceptions of
+other minds) are tuned for human-like agents; they will not suffice. We will need **augmentative tools (AI “adapters”) to interpret and communicate with unfamiliar intelligences**. In the
+same way microscopes and sensors let us perceive phenomena our eyes cannot, AI may help
+translate the “language” or behavior of a synthetic organism into terms we can understand, and
+vice versa.
+
+Finally, it’s important to note that nothing mystic restricts these principles to biological
+hardware. We found even simple computer algorithms (like sorting algorithms) can show
+emergent “side quests” – behaviors not explicitly coded, analogous to how cells have goals
+beyond genetic instructions. For example, while a sorting algorithm is busy ordering a list of
+numbers, it might incidentally exhibit patterns such as clustering certain items temporarily or
+delaying certain moves – patterns that look like a rudimentary strategy (like a form of delayed
+gratification) even though the code doesn’t explicitly demand it. This hints that whenever there is
+a process working toward a goal (even a mathematical one), there can be properties at the system
+level that are not obvious from the low-level rules. In other words, **competencies emerge** at
+many levels, and our formal models (whether of Turing machines or biochemical networks) are
+always just approximations. The map is not the territory: our theoretical model of a Turing
+machine is not the machine itself, just as our genomic description of an organism is not the
+organism. Minds and their capabilities are not fully captured by our simplified models of neurons
+or circuits. Therefore, as we venture into creating and interacting with novel agents, we should
+remain humble about the limits of our understanding. Life (and mind) will likely surprise us with
+forms and functions that challenge our assumptions.
+
+**In conclusion**, the unreliability of living hardware forced evolution to drive an **intelligence
+ratchet** – a rise of problem-solving capacity embodied in cells and tissues to ensure organisms
+hit their developmental and survival targets. We, as engineers of new bio-cognitive systems, are
+not so much inventing intelligence as we are finding ways to **interface with existing dynamics**
+and nudge them toward desired outcomes. Whether in a living embryo or a computer simulation,
+intelligence emerges when a system can pursue goals in its state space by flexible means. By
+understanding cells as agents and morphogenesis as their collective behavior, we gain the ability
+to program biology itself. This not only promises advances in medicine and technology but also
+forces us to broaden our view of cognition, life, and our ethical relationship to other beings. The
+coming decades may see an extraordinary **“Garden of Earthly Delights”** filled with chimeras,
+cyborgs, and synthetic creatures – a rich assortment of minds and bodies. It will be our
+responsibility to recognize and guide these novel forms of life, and to co-exist in a mutually
+beneficial symbiosis. The study of collective cellular intelligence and bioelectric communication
+is a key stepping stone toward that future, illuminating how evolution already solved many
+problems of cooperation and offering us a blueprint for extending those solutions beyond the
+boundaries of traditional biology.
+
+</docs/short_article_about_levins_seminar.md>
 
 <flattened_repo_acm_14_3.txt>
 <2501.13106v1.txt>
@@ -91346,6 +91588,8 @@ This project is released under the MIT License - see the LICENSE file for detail
 torch>=1.12.0
 numpy>=1.20.0
 matplotlib>=3.5.0
+seaborn>=0.11.2
+pandas>=1.3.0
 pyyaml>=6.0
 tqdm>=4.62.0
 scipy>=1.7.0
@@ -91354,6 +91598,7 @@ pytest>=7.0.0
 jupyterlab>=3.0.0
 networkx>=2.6.0
 wandb>=0.12.0
+typing-extensions>=4.10.0
 </requirements.txt>
 
 <scripts/data_analysis.py>
@@ -91517,28 +91762,69 @@ def load_configs(args):
     return bioelectric_config, sim_params
 
 def initialize_models(config, device):
-    # Initialize core BCM components
-    core = BioelectricConsciousnessCore(
-        input_dim=config['core']['input_dim'],
-        hidden_dim=config['core']['hidden_dim'],
-        output_dim=config['core']['output_dim'],
-        num_layers=config['core']['num_layers']
-    ).to(device)
+    # Core config remains the same...
+    core_config = {
+        'field_dimension': config['core']['output_dim'],
+        'sodium_channel': {
+            'input_dim': config['core']['input_dim'],
+            'hidden_dim': config['core']['hidden_dim'],
+            'output_dim': config['core']['output_dim']
+        },
+        'potassium_channel': {
+            'input_dim': config['core']['input_dim'],
+            'hidden_dim': config['core']['hidden_dim'],
+            'output_dim': config['core']['output_dim']
+        },
+        'calcium_channel': {
+            'input_dim': config['core']['input_dim'],
+            'hidden_dim': config['core']['hidden_dim'],
+            'output_dim': config['core']['output_dim']
+        },
+        'morphology': {
+            'hidden_dim': config['core']['hidden_dim'],
+            'state_dim': config['core']['output_dim'] // 2,
+        },
+        'goals': {
+            'hidden_dim': config['core']['hidden_dim'],
+            'num_goals': 4
+        }
+    }
     
-    pattern_model = BioelectricPatternFormation(
-        spatial_resolution=config['morphology']['spatial_resolution'],
-        diffusion_rate=config['morphology']['diffusion_rate'],
-        reaction_rate=config['morphology']['reaction_rate']
-    ).to(device)
+    # Initialize with the structured config
+    core = BioelectricConsciousnessCore(config=core_config).to(device)
     
-    colony = CellColony(
-        colony_size=config['collective']['colony_size'],
-        connection_density=config['collective']['connection_density']
-    ).to(device)
+    # Pattern formation config
+    pattern_config = {
+        'field_dimension': config['core']['output_dim'],
+        'pattern_complexity': config['morphology'].get('pattern_complexity', 0.7),
+        'reaction_rate': config['morphology'].get('reaction_rate', 0.1),
+        'morphology': {
+            'stability_preference': 0.7,
+            'plasticity': 0.3
+        }
+    }
+    pattern_model = BioelectricPatternFormation(config=pattern_config).to(device)
+    
+    # Create a proper config for cell colony that INCLUDES the sodium_channel structure
+    colony_config = {
+        'field_dimension': config['core']['output_dim'],
+        'colony_size': config['collective'].get('colony_size', 10),
+        'gap_junction_conductance': config['collective'].get('gap_junction_conductance', 0.2),
+        # Include the required channel configs to avoid KeyError
+        'sodium_channel': core_config['sodium_channel'],
+        'potassium_channel': core_config['potassium_channel'],
+        'calcium_channel': core_config['calcium_channel'],
+        'morphology': core_config['morphology'],
+        'goals': core_config['goals']
+    }
+    colony = CellColony(config=colony_config).to(device)
     
     homeostasis = HomeostasisRegulator(
-        strength=config['goals']['homeostasis_strength'],
-        adaptation_rate=config['goals']['adaptation_rate']
+        config={
+            'homeostasis_strength': config['goals'].get('homeostasis_strength', 0.8),
+            'resting_potential': 0.2,
+            'field_dimension': config['core']['output_dim']
+        }
     ).to(device)
     
     return {
@@ -91557,8 +91843,19 @@ def run_simulation(models, sim_params, output_dir, device):
     # Initialize state history for visualization
     state_history = []
     
-    # Initialize initial state
-    initial_state = BioelectricState()  # You'll need to properly initialize this
+    # Create a properly initialized BioelectricState
+    field_dim = models['core'].config['field_dimension']
+    initial_state = BioelectricState(
+        voltage_potential=torch.zeros((10, 10), device=device),
+        ion_gradients={
+            'sodium': torch.ones((10, 10), device=device) * 0.1,
+            'potassium': torch.ones((10, 10), device=device) * 0.9,
+            'calcium': torch.ones((10, 10), device=device) * 0.2
+        },
+        gap_junction_states=torch.eye(10, device=device),
+        morphological_state=torch.zeros(field_dim//2, device=device)
+    )
+    
     current_state = initial_state
     
     # Run simulation
@@ -91611,105 +91908,14 @@ if __name__ == "__main__":
     main()
 </scripts/run_simulation.py>
 
-<simulations/environments/env_setup.py>
-"""
-Environment setup for bioelectric consciousness simulations.
-"""
-import torch
-import numpy as np
-from typing import Dict, Tuple, List, Optional, Any
-
-class BioelectricEnvironment:
-    """
-    Defines the environment in which bioelectric systems operate.
-    Controls external conditions like nutrient availability, 
-    signal gradients, and environmental perturbations.
-    """
-    def __init__(self, 
-                 size: Tuple[int, int],
-                 boundary_condition: str = "periodic",
-                 noise_level: float = 0.05):
-        """
-        Initialize the bioelectric environment.
-        
-        Args:
-            size: Spatial dimensions of the environment (height, width)
-            boundary_condition: Type of boundary condition ("periodic", "fixed", "reflective")
-            noise_level: Amount of random noise in the environment
-        """
-        self.size = size
-        self.boundary_condition = boundary_condition
-        self.noise_level = noise_level
-        self.initialize_environment()
-    
-    def initialize_environment(self):
-        """Initialize environment variables."""
-        # Base chemical gradients
-        self.ion_gradients = {
-            'sodium': self._create_gradient((0, 0), self.size, 1.0, 0.2),
-            'potassium': self._create_gradient((self.size[0], self.size[1]), self.size, 0.8, 0.3),
-            'calcium': self._create_gradient((self.size[0]//2, self.size[1]//2), self.size, 1.2, 0.5),
-        }
-        
-    def _create_gradient(self, 
-                         center: Tuple[int, int], 
-                         size: Tuple[int, int], 
-                         amplitude: float, 
-                         decay: float) -> np.ndarray:
-        """Create a radial gradient in the environment."""
-        y, x = np.ogrid[:size[0], :size[1]]
-        dist = np.sqrt((x - center[1])**2 + (y - center[0])**2)
-        gradient = amplitude * np.exp(-decay * dist)
-        return gradient
-    
-    def apply_perturbation(self, 
-                          location: Tuple[int, int], 
-                          radius: int, 
-                          strength: float) -> None:
-        """
-        Apply a localized perturbation to the environment.
-        
-        Args:
-            location: Center point of perturbation (y, x)
-            radius: Radius of the affected area
-            strength: Strength of the perturbation
-        """
-        y, x = np.ogrid[:self.size[0], :self.size[1]]
-        dist = np.sqrt((x - location[1])**2 + (y - location[0])**2)
-        mask = dist <= radius
-        
-        # Perturb all ion gradients
-        for ion in self.ion_gradients:
-            self.ion_gradients[ion][mask] += strength
-    
-    def get_state(self) -> Dict[str, np.ndarray]:
-        """
-        Get the current state of the environment.
-        
-        Returns:
-            Dict containing ion gradients and other environment variables
-        """
-        state = {
-            'ion_gradients': self.ion_gradients,
-            'noise': self.noise_level * np.random.randn(*self.size)
-        }
-        return state
-    
-    def update(self) -> None:
-        """Update the environment for the next time step."""
-        # Apply diffusion to ion gradients
-        for ion in self.ion_gradients:
-            # Add small random fluctuations
-            self.ion_gradients[ion] += self.noise_level * np.random.randn(*self.size)
-            
-            # Handle boundary conditions
-            if self.boundary_condition == "fixed":
-                # Zero at boundaries
-                self.ion_gradients[ion][0, :] = 0
-                self.ion_gradients[ion][-1, :] = 0
-                self.ion_gradients[ion][:, 0] = 0
-                self.ion_gradients[ion][:, -1] = 0
-</simulations/environments/env_setup.py>
+<show_python_path.py>
+# Create a file show_python_path.py with this content:
+import sys
+import site
+print(f"Python executable: {sys.executable}")
+print(f"Python path: {sys.path}")
+print(f"User site-packages: {site.USER_SITE}")
+</show_python_path.py>
 
 <simulations/simulation.py>
 """

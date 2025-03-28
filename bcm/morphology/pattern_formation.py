@@ -146,15 +146,26 @@ class BioelectricPatternFormation(nn.Module):
         # Update state with reaction term and non-linearity
         updated_morph = torch.tanh(morph_flat + voltage_influence)
         
-        # Apply diffusion-like smoothing using a simple averaging operation
-        # Create a diffusion kernel
-        smoothed_morph = updated_morph
+        # FIX: Use a 1D-compatible smoothing approach instead of pad with replicate mode
+        smoothed_morph = updated_morph.clone()
         if len(updated_morph) > 3:  # Only if we have enough points
-            # Simple 1D diffusion (rolling average)
-            kernel_size = 3
-            padding = torch.nn.functional.pad(updated_morph, (1, 1), mode='replicate')
+            # Simple 1D diffusion using manual approach instead of pad
             for i in range(len(updated_morph)):
-                smoothed_morph[i] = torch.mean(padding[i:i+kernel_size])
+                # Handle boundaries without using pad
+                if i == 0:
+                    # Left boundary - duplicate first element
+                    neighbors = torch.tensor([updated_morph[0], updated_morph[0], updated_morph[1]], 
+                                            device=updated_morph.device)
+                elif i == len(updated_morph) - 1:
+                    # Right boundary - duplicate last element
+                    neighbors = torch.tensor([updated_morph[i-1], updated_morph[i], updated_morph[i]], 
+                                            device=updated_morph.device)
+                else:
+                    # Interior points
+                    neighbors = updated_morph[i-1:i+2]
+                
+                # Average of neighbors
+                smoothed_morph[i] = torch.mean(neighbors)
         
         # Blend original and smoothed states based on pattern complexity
         final_morph = pattern_complexity * smoothed_morph + (1 - pattern_complexity) * updated_morph

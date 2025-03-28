@@ -1,3 +1,6 @@
+  - path: /%USERPROFILE%
+    type: directory
+    contents:
   - path: /bcm
     type: directory
     contents:
@@ -83,6 +86,8 @@
   - path: /docs
     type: directory
     contents:
+    - path: /docs/short_article_about_levins_seminar.md
+      type: file
   - path: /experiments
     type: directory
     contents:
@@ -107,14 +112,11 @@
       type: file
     - path: /scripts/run_simulation.py
       type: file
+  - path: /show_python_path.py
+    type: file
   - path: /simulations
     type: directory
     contents:
-    - path: /simulations/environments
-      type: directory
-      contents:
-      - path: /simulations/environments/env_setup.py
-        type: file
     - path: /simulations/evaluation
       type: directory
       contents:
