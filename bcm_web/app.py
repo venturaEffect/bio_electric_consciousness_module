@@ -20,10 +20,12 @@ from bcm.morphology.pattern_formation import BioelectricPatternFormation
 from bcm.goals.homeostasis import HomeostasisRegulator
 import bcm.utils.visualization as viz
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('bcm_web')
 
 app = Flask(__name__)
 
