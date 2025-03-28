@@ -30,9 +30,23 @@ logger = logging.getLogger('bcm_web')
 app = Flask(__name__)
 
 # Load default configuration
-config_path = os.path.join(parent_dir, 'configs', 'bioelectric_config.yaml')
-with open(config_path, 'r') as f:
-    default_config = yaml.safe_load(f)
+default_config = create_default_config()
+
+# Try to load from file if available, but fall back to defaults
+try:
+    import yaml
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+                             'configs', 'bioelectric_config.yaml')
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            file_config = yaml.safe_load(f)
+            # Merge file config with defaults to ensure all required keys exist
+            default_config = update_config(default_config, file_config)
+        logger.info(f"Loaded configuration from {config_path}")
+    else:
+        logger.warning(f"Config file not found at {config_path}, using defaults")
+except Exception as e:
+    logger.warning(f"Error loading config from file: {str(e)}. Using defaults.")
 
 # Global model instances and device
 models = {}
@@ -44,12 +58,26 @@ current_state = None
 
 def init_models(config):
     """Initialize models based on configuration."""
+    global models
+    
     logger.info("Initializing models with current configuration")
     
-    models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
-    models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
-    models['colony'] = CellColony(config['colony']).to(device)
-    models['homeostasis'] = HomeostasisRegulator(config['homeostasis']).to(device)
+    try:
+        models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize full core model: {str(e)}. Using simplified version.")
+        # Import and use simplified core if the full one fails
+        from bcm_web.simplified_core import SimplifiedBioelectricCore
+        models['core'] = SimplifiedBioelectricCore(config['core']).to(device)
+    
+    # Continue with other models
+    try:
+        models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
+        models['colony'] = CellColony(config['colony']).to(device)
+        models['homeostasis'] = HomeostasisRegulator(config['homeostasis']).to(device)
+    except Exception as e:
+        logger.error(f"Error initializing models: {str(e)}")
+        raise
     
     return models
 
@@ -74,6 +102,70 @@ def update_config(base_config, updates):
         for name, value in params.items():
             config[section][name] = value
     
+    return config
+
+def create_default_config():
+    """
+    Create a complete default configuration with all required keys.
+    
+    Returns:
+        dict: Complete configuration with sensible defaults
+    """
+    config = {
+        'core': {
+            'field_dimension': 10,
+            'membrane_capacitance': 0.5,
+            'resting_potential': -0.2,
+            'threshold': 0.3,
+            'sodium_channel': {
+                'conductance': 0.8,
+                'reversal_potential': 1.0,
+                'activation_threshold': 0.2,
+                'inactivation_rate': 0.1,
+                'layers': [64, 32, 1]
+            },
+            'potassium_channel': {
+                'conductance': 0.6,
+                'reversal_potential': -0.8,
+                'activation_threshold': 0.1,
+                'inactivation_rate': 0.05,
+                'layers': [64, 32, 1]
+            },
+            'calcium_channel': {
+                'conductance': 0.4,
+                'reversal_potential': 0.9,
+                'activation_threshold': 0.3,
+                'inactivation_rate': 0.15,
+                'layers': [64, 32, 1]
+            },
+            'gap_junction_strength': 0.5
+        },
+        'pattern_formation': {
+            'field_dimension': 10,
+            'pattern_complexity': 0.7,
+            'reaction_rate': 0.3,
+            'diffusion_rate': 0.1,
+            'boundary_condition': 'circular'
+        },
+        'colony': {
+            'num_cells': 5,
+            'connection_density': 0.8,
+            'communication_strength': 0.6,
+            'response_threshold': 0.2,
+            'field_dimension': 10
+        },
+        'homeostasis': {
+            'homeostasis_strength': 0.5,
+            'resting_potential': -0.2,
+            'target_ion_levels': {
+                'sodium': 0.1,
+                'potassium': 0.8,
+                'calcium': 0.2
+            },
+            'correction_rate': 0.1,
+            'field_dimension': 10
+        }
+    }
     return config
 
 # Initialize with default config
