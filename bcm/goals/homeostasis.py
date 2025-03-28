@@ -3,17 +3,18 @@ Implementation of homeostatic mechanisms for bioelectric systems.
 """
 import torch
 import torch.nn as nn
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
+
+# Add this import at the top
+from bcm.state.bioelectric_state import BioelectricState
 
 class HomeostasisRegulator(nn.Module):
     """
-    Models homeostatic regulation in bioelectric systems.
-    
-    Homeostasis is the tendency of biological systems to maintain
-    stable internal states despite changing external conditions.
+    Module responsible for maintaining bioelectric stability through 
+    homeostatic regulation of membrane potentials and ion gradients.
     """
     
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict[str, Any]):
         super().__init__()
         self.config = config
         
