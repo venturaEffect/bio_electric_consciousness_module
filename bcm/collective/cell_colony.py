@@ -139,3 +139,37 @@ class CellColony(nn.Module):
             return sum(correlations) / len(correlations)
         else:
             return 0.0
+
+    def forward(self, state: BioelectricState) -> BioelectricState:
+        """
+        Process a bioelectric state through the cell colony.
+        
+        Args:
+            state: Current bioelectric state
+            
+        Returns:
+            Updated bioelectric state after colony interactions
+        """
+        # Extract a stimulus representation from the current state
+        stimulus = state.voltage_potential.flatten()
+        
+        # Process through colony
+        cell_states, _ = self.process_colony_stimulus(stimulus)
+        
+        # Aggregate colony behavior into unified state
+        # Use the first cell as a base and incorporate colony-wide effects
+        updated_state = BioelectricState(
+            voltage_potential=cell_states[0].voltage_potential.clone(),
+            ion_gradients={
+                ion: grad.clone() 
+                for ion, grad in cell_states[0].ion_gradients.items()
+            },
+            gap_junction_states=state.gap_junction_states.clone(),
+            morphological_state=state.morphological_state.clone()
+        )
+        
+        # Apply colony-wide effects (average voltage potentials across cells)
+        avg_voltage = torch.stack([cs.voltage_potential for cs in cell_states]).mean(dim=0)
+        updated_state.voltage_potential = avg_voltage
+        
+        return updated_state
