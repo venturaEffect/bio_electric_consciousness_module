@@ -3,13 +3,14 @@ import os
 import sys
 import torch
 import numpy as np
-import json
+import yaml
 
 # Add parent directory to path so we can import BCM modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(parent_dir)
 
 # Import BCM modules
-from bcm.core.bioelectric_core import BioelectricConsciousnessCore, BioelectricState
+from bcm.core.bioelectric_core import BioelectricConsciousnessCore
 from bcm.collective.cell_colony import CellColony
 from bcm.morphology.pattern_formation import BioelectricPatternFormation
 from bcm.goals.homeostasis import HomeostasisRegulator
@@ -19,19 +20,22 @@ from bcm.utils.visualization import (
     plot_morphological_state
 )
 
+# Create Flask app
 app = Flask(__name__)
 
 # Load default configuration
-import yaml
-with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'configs/bioelectric_config.yaml'), 'r') as f:
+config_path = os.path.join(parent_dir, 'configs', 'bioelectric_config.yaml')
+with open(config_path, 'r') as f:
     default_config = yaml.safe_load(f)
 
-# Global model instances
+# Global variables
 models = {}
+current_state = None
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def init_models(config):
     """Initialize models based on configuration."""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    global models
     
     models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
     models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
@@ -40,20 +44,57 @@ def init_models(config):
     
     return models
 
-# Initialize with default config
-init_models(default_config)
-
 @app.route('/')
 def index():
-    """Main page with simulation interface."""
+    """Main page with interactive simulation interface."""
     return render_template('index.html')
+
+@app.route('/api/init_simulation', methods=['POST'])
+def init_simulation():
+    """Initialize the simulation with chosen parameters."""
+    data = request.json
+    scenario = data.get('scenario', 'default')
+    
+    # Get grid size from config
+    grid_size = default_config['core'].get('field_dimension', 10)
+    
+    # Initialize with small random values
+    voltage_potential = torch.randn(grid_size, grid_size, device=device) * 0.01
+    
+    # Apply scenario-specific initializations
+    if scenario == 'two_heads':
+        # Add two high-voltage regions suggesting two head formation sites
+        voltage_potential[1:3, 1:3] = 0.8  # Top head voltage pattern
+        voltage_potential[7:9, 7:9] = 0.8  # Bottom head voltage pattern
+    elif scenario == 'eye_formation':
+        # Setup pattern for ectopic eye formation
+        voltage_potential[4:6, 4:6] = 0.9  # Central eye-inducing voltage pattern
+    
+    ion_gradients = {
+        'sodium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+        'potassium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+        'calcium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+    }
+    
+    morphological_state = torch.zeros(grid_size*grid_size, device=device)
+    
+    # Create state dictionary for JSON serialization
+    global current_state
+    current_state = {
+        'voltage_potential': voltage_potential.cpu().numpy().tolist(),
+        'ion_gradients': {
+            ion: grad.cpu().numpy().tolist() for ion, grad in ion_gradients.items()
+        },
+        'morphological_state': morphological_state.cpu().numpy().tolist()
+    }
+    
+    return jsonify({'success': True, 'state': current_state})
 
 @app.route('/api/run_step', methods=['POST'])
 def run_step():
     """Run a single simulation step with provided parameters."""
     data = request.json
     config_updates = data.get('config_updates', {})
-    current_state = data.get('state', None)
     
     # Update config with provided parameters
     updated_config = default_config.copy()
@@ -64,44 +105,8 @@ def run_step():
     # Re-initialize models if config changed significantly
     init_models(updated_config)
     
-    # Create initial state if not provided
-    if not current_state:
-        # Create default initial state
-        grid_size = updated_config['core'].get('field_dimension', 10)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        # Initialize with small random values
-        voltage_potential = torch.randn(grid_size, grid_size, device=device) * 0.01
-        
-        # Add a specific pattern for demonstration
-        if data.get('scenario') == 'two_heads':
-            # Add two high-voltage regions suggesting two head formation sites
-            voltage_potential[1:3, 1:3] = 0.8  # Top head voltage pattern
-            voltage_potential[7:9, 7:9] = 0.8  # Bottom head voltage pattern
-        elif data.get('scenario') == 'eye_formation':
-            # Add a voltage pattern that could induce ectopic eye
-            center = grid_size // 2
-            voltage_potential[center-1:center+1, center-1:center+1] = 0.9  # Central eye-inducing voltage
-        
-        ion_gradients = {
-            'sodium': torch.randn(grid_size, grid_size, device=device) * 0.01,
-            'potassium': torch.randn(grid_size, grid_size, device=device) * 0.01,
-            'calcium': torch.randn(grid_size, grid_size, device=device) * 0.01,
-        }
-        
-        morphological_state = torch.zeros(grid_size*grid_size, device=device)
-        
-        # Create state dictionary for JSON serialization
-        current_state = {
-            'voltage_potential': voltage_potential.cpu().numpy().tolist(),
-            'ion_gradients': {
-                ion: grad.cpu().numpy().tolist() for ion, grad in ion_gradients.items()
-            },
-            'morphological_state': morphological_state.cpu().numpy().tolist()
-        }
-    
     # Convert state back to tensors for processing
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    global current_state
     voltage_potential = torch.tensor(current_state['voltage_potential'], device=device)
     ion_gradients = {
         ion: torch.tensor(grad, device=device) 
@@ -125,7 +130,7 @@ def run_step():
         state = models['homeostasis'](state)
         
         # Convert back to Python native types for JSON serialization
-        result_state = {
+        current_state = {
             'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
             'ion_gradients': {
                 ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
@@ -135,7 +140,7 @@ def run_step():
         
         return jsonify({
             'success': True,
-            'state': result_state
+            'state': current_state
         })
         
     except Exception as e:

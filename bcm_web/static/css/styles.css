@@ -1,0 +1,119 @@
+/* Dark Mode Styles */
+body {
+  background-color: #121212;
+  color: #e0e0e0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+  background-color: #1e1e1e;
+  border-color: #444444;
+}
+
+.card-header {
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #444444;
+}
+
+.form-control,
+.form-select {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444444;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-control:disabled,
+.form-select:disabled,
+.form-control[readonly],
+.form-select[readonly] {
+  background-color: #252525;
+  color: #aaaaaa;
+}
+
+.btn-outline-primary {
+  color: #6ea8fe;
+  border-color: #6ea8fe;
+}
+
+.btn-outline-primary:hover {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.btn-outline-secondary {
+  color: #a7acb1;
+  border-color: #a7acb1;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+.btn-outline-success {
+  color: #75b798;
+  border-color: #75b798;
+}
+
+.btn-outline-success:hover {
+  background-color: #198754;
+  color: #fff;
+}
+
+.btn-outline-danger {
+  color: #ea868f;
+  border-color: #ea868f;
+}
+
+.btn-outline-danger:hover {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.btn-outline-light {
+  color: #c3c7cb;
+  border-color: #c3c7cb;
+}
+
+.btn-outline-light:hover,
+.btn-outline-light.active {
+  background-color: #f8f9fa;
+  color: #000;
+}
+
+.form-range::-webkit-slider-thumb {
+  background: #0d6efd;
+}
+
+.form-range::-moz-range-thumb {
+  background: #0d6efd;
+}
+
+.text-muted {
+  color: #9e9e9e !important;
+}
+
+/* Visualization Containers */
+#visualization,
+#time-series,
+#pattern-metrics {
+  background-color: #2d2d2d;
+  border-radius: 4px;
+}
+
+/* Make Plotly dark theme compatible */
+.js-plotly-plot .plotly .main-svg {
+  background-color: #2d2d2d !important;
+}
+
+.js-plotly-plot .plotly .bg {
+  fill: #2d2d2d !important;
+}

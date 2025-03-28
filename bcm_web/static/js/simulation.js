@@ -1,5 +1,5 @@
 $(document).ready(function () {
-  // State variables
+  // Global variables
   let currentState = null;
   let iterationCount = 0;
   let autoRunInterval = null;
@@ -9,13 +9,11 @@ $(document).ready(function () {
     complexity: [],
   };
 
-  // Initialize plots
+  // Initialize plots with dark theme
   initPlots();
 
-  // Load scenarios
+  // Load scenarios and parameters
   loadScenarios();
-
-  // Load parameters
   loadParameters();
 
   // Event handlers
