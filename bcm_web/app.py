@@ -29,81 +29,7 @@ logger = logging.getLogger('bcm_web')
 
 app = Flask(__name__)
 
-# Load default configuration
-default_config = create_default_config()
-
-# Try to load from file if available, but fall back to defaults
-try:
-    import yaml
-    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
-                             'configs', 'bioelectric_config.yaml')
-    if os.path.exists(config_path):
-        with open(config_path, 'r') as f:
-            file_config = yaml.safe_load(f)
-            # Merge file config with defaults to ensure all required keys exist
-            default_config = update_config(default_config, file_config)
-        logger.info(f"Loaded configuration from {config_path}")
-    else:
-        logger.warning(f"Config file not found at {config_path}, using defaults")
-except Exception as e:
-    logger.warning(f"Error loading config from file: {str(e)}. Using defaults.")
-
-# Global model instances and device
-models = {}
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-logger.info(f"Using device: {device}")
-
-# Global state
-current_state = None
-
-def init_models(config):
-    """Initialize models based on configuration."""
-    global models
-    
-    logger.info("Initializing models with current configuration")
-    
-    try:
-        models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
-    except Exception as e:
-        logger.warning(f"Failed to initialize full core model: {str(e)}. Using simplified version.")
-        # Import and use simplified core if the full one fails
-        from bcm_web.simplified_core import SimplifiedBioelectricCore
-        models['core'] = SimplifiedBioelectricCore(config['core']).to(device)
-    
-    # Continue with other models
-    try:
-        models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
-        models['colony'] = CellColony(config['colony']).to(device)
-        models['homeostasis'] = HomeostasisRegulator(config['homeostasis']).to(device)
-    except Exception as e:
-        logger.error(f"Error initializing models: {str(e)}")
-        raise
-    
-    return models
-
-def update_config(base_config, updates):
-    """
-    Updates configuration with provided parameter changes.
-    
-    Args:
-        base_config (dict): Base configuration dictionary
-        updates (dict): Updates to apply
-        
-    Returns:
-        dict: Updated configuration
-    """
-    # Make a deep copy to avoid modifying the original
-    config = copy.deepcopy(base_config)
-    
-    # Apply updates
-    for section, params in updates.items():
-        if section not in config:
-            config[section] = {}
-        for name, value in params.items():
-            config[section][name] = value
-    
-    return config
-
+# Define helper functions first
 def create_default_config():
     """
     Create a complete default configuration with all required keys.
@@ -167,6 +93,168 @@ def create_default_config():
         }
     }
     return config
+
+def update_config(base_config, updates):
+    """
+    Updates configuration with provided parameter changes.
+    
+    Args:
+        base_config (dict): Base configuration dictionary
+        updates (dict): Updates to apply
+        
+    Returns:
+        dict: Updated configuration
+    """
+    # Make a deep copy to avoid modifying the original
+    config = copy.deepcopy(base_config)
+    
+    # Apply updates
+    for section, params in updates.items():
+        if section not in config:
+            config[section] = {}
+        for name, value in params.items():
+            config[section][name] = value
+    
+    return config
+
+# Now load default configuration
+default_config = create_default_config()
+
+# Try to load from file if available, but fall back to defaults
+try:
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+                             'configs', 'bioelectric_config.yaml')
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            file_config = yaml.safe_load(f)
+            # Merge file config with defaults to ensure all required keys exist
+            default_config = update_config(default_config, file_config)
+        logger.info(f"Loaded configuration from {config_path}")
+    else:
+        logger.warning(f"Config file not found at {config_path}, using defaults")
+except Exception as e:
+    logger.warning(f"Error loading config from file: {str(e)}. Using defaults.")
+
+# Global model instances and device
+models = {}
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger.info(f"Using device: {device}")
+
+# Global state
+current_state = None
+
+# Define the simplified bioelectric core model for web interface
+class SimplifiedBioelectricCore(torch.nn.Module):
+    """
+    A simplified version of the BCM core for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.resting_potential = config.get('resting_potential', -0.2)
+        self.gap_junction_strength = config.get('gap_junction_strength', 0.5)
+        self.field_dimension = config.get('field_dimension', 10)
+        
+    def forward(self, state):
+        """Process a state through simplified bioelectric dynamics."""
+        # Extract components
+        voltage = state.voltage_potential
+        ion_gradients = state.ion_gradients
+        
+        # Simple voltage diffusion through gap junctions
+        voltage_laplacian = self._compute_laplacian(voltage)
+        voltage_diffusion = self.gap_junction_strength * voltage_laplacian
+        
+        # Simple ion channel effects (depolarization/repolarization)
+        sodium_effect = 0.1 * ion_gradients['sodium']
+        potassium_effect = -0.05 * ion_gradients['potassium']
+        calcium_effect = 0.08 * ion_gradients['calcium']
+        
+        # Update voltage
+        voltage_update = voltage_diffusion + sodium_effect + potassium_effect + calcium_effect
+        new_voltage = voltage + 0.1 * voltage_update
+        
+        # Apply non-linearity to keep values in reasonable range
+        new_voltage = torch.tanh(new_voltage)
+        
+        # Simple updates to ion gradients based on voltage
+        new_sodium = ion_gradients['sodium'] * 0.95 + 0.05 * torch.relu(new_voltage)
+        new_potassium = ion_gradients['potassium'] * 0.95 + 0.05 * torch.relu(-new_voltage)
+        new_calcium = ion_gradients['calcium'] * 0.95 + 0.05 * torch.abs(new_voltage)
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=new_voltage,
+            ion_gradients={
+                'sodium': new_sodium,
+                'potassium': new_potassium,
+                'calcium': new_calcium
+            },
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
+        )
+        
+        return new_state
+    
+    def _compute_laplacian(self, tensor):
+        """Compute discrete Laplacian operator (for diffusion)."""
+        # Get dimensions
+        h, w = tensor.shape
+        
+        # Compute discrete Laplacian using convolution-like operations
+        laplacian = torch.zeros_like(tensor)
+        
+        # Internal points
+        for i in range(1, h-1):
+            for j in range(1, w-1):
+                laplacian[i, j] = (
+                    tensor[i+1, j] + tensor[i-1, j] + 
+                    tensor[i, j+1] + tensor[i, j-1] - 
+                    4 * tensor[i, j]
+                )
+                
+        # Handle boundary conditions (no-flux)
+        # Top and bottom edges
+        for j in range(1, w-1):
+            laplacian[0, j] = 2 * tensor[1, j] + tensor[0, j+1] + tensor[0, j-1] - 4 * tensor[0, j]
+            laplacian[h-1, j] = 2 * tensor[h-2, j] + tensor[h-1, j+1] + tensor[h-1, j-1] - 4 * tensor[h-1, j]
+        
+        # Left and right edges
+        for i in range(1, h-1):
+            laplacian[i, 0] = tensor[i+1, 0] + tensor[i-1, 0] + 2 * tensor[i, 1] - 4 * tensor[i, 0]
+            laplacian[i, w-1] = tensor[i+1, w-1] + tensor[i-1, w-1] + 2 * tensor[i, w-2] - 4 * tensor[i, w-1]
+        
+        # Corners
+        laplacian[0, 0] = 2 * tensor[1, 0] + 2 * tensor[0, 1] - 4 * tensor[0, 0]
+        laplacian[0, w-1] = 2 * tensor[1, w-1] + 2 * tensor[0, w-2] - 4 * tensor[0, w-1]
+        laplacian[h-1, 0] = 2 * tensor[h-2, 0] + 2 * tensor[h-1, 1] - 4 * tensor[h-1, 0]
+        laplacian[h-1, w-1] = 2 * tensor[h-2, w-1] + 2 * tensor[h-1, w-2] - 4 * tensor[h-1, w-1]
+        
+        return laplacian
+
+def init_models(config):
+    """Initialize models based on configuration."""
+    global models
+    
+    logger.info("Initializing models with current configuration")
+    
+    try:
+        models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize full core model: {str(e)}. Using simplified version.")
+        models['core'] = SimplifiedBioelectricCore(config['core']).to(device)
+    
+    # Continue with other models
+    try:
+        models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
+        models['colony'] = CellColony(config['colony']).to(device)
+        models['homeostasis'] = HomeostasisRegulator(config['homeostasis']).to(device)
+    except Exception as e:
+        logger.error(f"Error initializing models: {str(e)}")
+        raise
+    
+    return models
 
 # Initialize with default config
 init_models(default_config)
