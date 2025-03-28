@@ -78,6 +78,8 @@
       - path: /bcm_web/static/css
         type: directory
         contents:
+        - path: /bcm_web/static/css/styles.css
+          type: file
       - path: /bcm_web/static/js
         type: directory
         contents:
