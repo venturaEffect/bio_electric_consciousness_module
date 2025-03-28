@@ -203,5 +203,36 @@ def get_parameters():
     ]
     return jsonify(parameters)
 
+@app.route('/api/modify_pattern', methods=['POST'])
+def modify_pattern():
+    """Endpoint to inject specific bioelectric patterns into the simulation"""
+    data = request.json
+    pattern_type = data.get('pattern_type', 'two_head')  # e.g., 'two_head', 'eye_induction'
+    region = data.get('region', [0, 0, 10, 10])  # region to modify
+    intensity = data.get('intensity', 0.8)
+    
+    # Modify the bioelectric state in the running simulation
+    models['core'].inject_bioelectric_pattern(pattern_type, region, intensity)
+    
+    # Return updated state
+    return jsonify(get_current_state())
+
+@app.route('/api/scenarios/planarian_regeneration', methods=['POST'])
+def planarian_regeneration():
+    """Simulate planarian two-headed regeneration experiment"""
+    # Initialize planarian model with default one-head pattern
+    init_models(planarian_config)
+    
+    # Apply ion channel manipulations to create two-head pattern
+    models['core'].apply_ion_channel_blocker('ouabain', concentration=0.5)
+    
+    # Run simulation for specified time
+    steps = request.json.get('steps', 100)
+    for _ in range(steps):
+        run_step()
+    
+    return jsonify({"message": "Planarian regeneration completed", 
+                    "state": get_current_state()})
+
 if __name__ == '__main__':
     app.run(debug=True)

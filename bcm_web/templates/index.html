@@ -160,3 +160,8 @@
     <script src="{{ url_for('static', filename='js/simulation.js') }}"></script>
   </body>
 </html>
+
+from flask_socketio import SocketIO, emit socketio = SocketIO(app) def
+background_simulation_thread(): """Background thread that emits simulation state
+updates""" while True: if simulation_running: current_state = run_step()
+socketio.emit('simulation_update', current_state) socketio.sleep(0.1)
