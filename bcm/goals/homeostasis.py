@@ -5,8 +5,24 @@ import torch
 import torch.nn as nn
 from typing import Dict, List, Tuple, Optional, Any
 
-# Add this import at the top
-from bcm.state.bioelectric_state import BioelectricState
+# Create a minimal BioelectricState class right in this file
+class BioelectricState:
+    """
+    Represents the bioelectric state of cells including voltage potentials,
+    ion gradients, gap junction states, and morphological state.
+    """
+    
+    def __init__(
+        self,
+        voltage_potential: torch.Tensor,
+        ion_gradients: Dict[str, torch.Tensor],
+        gap_junction_states: Optional[torch.Tensor] = None,
+        morphological_state: Optional[torch.Tensor] = None
+    ):
+        self.voltage_potential = voltage_potential
+        self.ion_gradients = ion_gradients
+        self.gap_junction_states = gap_junction_states if gap_junction_states is not None else torch.zeros_like(voltage_potential)
+        self.morphological_state = morphological_state if morphological_state is not None else torch.zeros_like(voltage_potential)
 
 class HomeostasisRegulator(nn.Module):
     """
