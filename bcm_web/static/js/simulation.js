@@ -233,47 +233,30 @@ $(document).ready(function () {
   }
 
   function initPlots() {
-    // Set dark theme for Plotly
-    const darkTheme = {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      title: { font: { color: "#fff" } },
-      xaxis: {
-        title: { font: { color: "#fff" } },
-        color: "#fff",
-        gridcolor: "#444",
-      },
-      yaxis: {
-        title: { font: { color: "#fff" } },
-        color: "#fff",
-        gridcolor: "#444",
-      },
-    };
+    console.log("Initializing plots...");
 
-    // Create initial empty voltage potential plot
-    const emptyHeatmap = {
-      z: Array(10)
-        .fill()
-        .map(() => Array(10).fill(0)),
-      type: "heatmap",
-      colorscale: "Plasma",
-    };
+    // Initialize main visualization
+    Plotly.newPlot(
+      "visualization",
+      [
+        {
+          z: Array(10)
+            .fill()
+            .map(() => Array(10).fill(0)),
+          type: "heatmap",
+          colorscale: "Viridis",
+          colorbar: { title: "Voltage (mV)" },
+        },
+      ],
+      {
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        margin: { t: 10, l: 50, r: 50, b: 10 },
+      }
+    );
 
-    Plotly.newPlot("visualization", [emptyHeatmap], {
-      ...darkTheme,
-      margin: { t: 0, l: 0, r: 0, b: 0 },
-    });
-
-    // Create empty time series plot
-    const timeSeriesLayout = {
-      ...darkTheme,
-      title: "Average Voltage Over Time",
-      xaxis: { ...darkTheme.xaxis, title: "Iteration" },
-      yaxis: { ...darkTheme.yaxis, title: "Value" },
-      margin: { t: 30, l: 40, r: 10, b: 40 },
-    };
-
+    // Initialize time series plot
     Plotly.newPlot(
       "time-series",
       [
@@ -282,22 +265,21 @@ $(document).ready(function () {
           y: [],
           type: "scatter",
           mode: "lines",
-          name: "Avg Voltage",
-          line: { color: "#00ffff" }, // Cyan color for visibility on dark background
+          line: { color: "#00ff00", width: 2 },
+          name: "Average Voltage",
         },
       ],
-      timeSeriesLayout
+      {
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        margin: { t: 10, l: 50, r: 20, b: 40 },
+        xaxis: { color: "#fff", title: "Iteration", gridcolor: "#444" },
+        yaxis: { color: "#fff", title: "Voltage", gridcolor: "#444" },
+      }
     );
 
-    // Create empty pattern metrics plot
-    const metricsLayout = {
-      ...darkTheme,
-      title: "Pattern Complexity",
-      xaxis: { ...darkTheme.xaxis, title: "Iteration" },
-      yaxis: { ...darkTheme.yaxis, title: "Complexity" },
-      margin: { t: 30, l: 40, r: 10, b: 40 },
-    };
-
+    // Initialize pattern metrics plot
     Plotly.newPlot(
       "pattern-metrics",
       [
@@ -306,82 +288,88 @@ $(document).ready(function () {
           y: [],
           type: "scatter",
           mode: "lines",
+          line: { color: "#00ffff", width: 2 },
           name: "Complexity",
-          line: { color: "#ff9500" }, // Orange color for visibility on dark background
         },
       ],
-      metricsLayout
+      {
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        margin: { t: 10, l: 50, r: 20, b: 40 },
+        xaxis: { color: "#fff", title: "Iteration", gridcolor: "#444" },
+        yaxis: { color: "#fff", title: "Complexity", gridcolor: "#444" },
+      }
     );
+
+    console.log("Plots initialized");
   }
 
   function updateVisualization() {
+    console.log("Updating visualization with state:", currentState);
+
+    if (!currentState || !currentState.voltage_potential) {
+      console.error("Invalid state data for visualization");
+      return;
+    }
+
     let data = [];
 
+    // Select data based on current view
     if (currentView === "voltage") {
       data = [
         {
           z: currentState.voltage_potential,
           type: "heatmap",
-          colorscale: "Plasma",
-          zmin: -1,
-          zmax: 1,
+          colorscale: "Viridis",
           colorbar: {
             title: "Voltage (mV)",
-            tickfont: { color: "#fff" },
             titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
           },
         },
       ];
     } else if (currentView === "morphology") {
-      // Reshape 1D morphological state to 2D for visualization
+      // Reshape morphological state to 2D for visualization
       const size = Math.sqrt(currentState.morphological_state.length);
-      const morphology2D = [];
-
+      let morphGrid = [];
       for (let i = 0; i < size; i++) {
-        const row = [];
-        for (let j = 0; j < size; j++) {
-          row.push(currentState.morphological_state[i * size + j]);
-        }
-        morphology2D.push(row);
+        morphGrid.push(
+          currentState.morphological_state.slice(i * size, (i + 1) * size)
+        );
       }
 
       data = [
         {
-          z: morphology2D,
+          z: morphGrid,
           type: "heatmap",
-          colorscale: "YlOrBr",
-          zmin: -1,
-          zmax: 1,
+          colorscale: "Cividis",
           colorbar: {
-            title: "Morphology",
-            tickfont: { color: "#fff" },
+            title: "Morphological State",
             titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
           },
         },
       ];
     } else {
-      // Ion gradient views (sodium, potassium, calcium)
+      // Ion gradients (sodium, potassium, calcium)
       const ionName = currentView;
+      if (currentState.ion_gradients && currentState.ion_gradients[ionName]) {
+        let colorscale = "Hot";
+        if (ionName === "potassium") colorscale = "Blues";
+        if (ionName === "calcium") colorscale = "Greens";
 
-      if (currentState.ion_gradients[ionName]) {
         data = [
           {
             z: currentState.ion_gradients[ionName],
             type: "heatmap",
-            colorscale:
-              ionName === "sodium"
-                ? "Hot"
-                : ionName === "potassium"
-                ? "Bluered"
-                : "Greens",
-            zmin: -1,
-            zmax: 1,
+            colorscale: colorscale,
             colorbar: {
               title: `${
                 ionName.charAt(0).toUpperCase() + ionName.slice(1)
               } (mM)`,
-              tickfont: { color: "#fff" },
               titlefont: { color: "#fff" },
+              tickfont: { color: "#fff" },
             },
           },
         ];
@@ -392,7 +380,7 @@ $(document).ready(function () {
     Plotly.react("visualization", data, {
       paper_bgcolor: "#222",
       plot_bgcolor: "#222",
-      margin: { t: 0, l: 0, r: 0, b: 0 },
+      margin: { t: 10, l: 50, r: 50, b: 10 },
     });
 
     // Update time series data if we have state data

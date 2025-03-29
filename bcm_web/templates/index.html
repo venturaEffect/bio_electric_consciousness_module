@@ -13,7 +13,14 @@
       rel="stylesheet"
     />
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      .plot-container {
+        width: 100%;
+        height: 300px;
+      }
+    </style>
   </head>
   <body class="bg-dark text-light">
     <div class="container-fluid">
@@ -144,49 +151,47 @@
         <!-- Visualization Panel -->
         <div class="col-md-9">
           <div class="card bg-dark border-secondary mb-4">
-            <div
-              class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center"
-            >
-              <h5>Bioelectric Visualization</h5>
-              <div class="btn-group btn-group-sm" role="group">
+            <div class="card-header bg-dark border-secondary">
+              <h5 class="text-info">Bioelectric Pattern Visualization</h5>
+            </div>
+            <div class="card-body">
+              <div class="btn-group mb-3" role="group">
                 <button
                   type="button"
-                  class="btn btn-outline-secondary active"
+                  class="btn btn-outline-secondary btn-sm active"
                   data-view="voltage"
                 >
                   Voltage
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-secondary"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="sodium"
                 >
-                  Na+
+                  Sodium
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-secondary"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="potassium"
                 >
-                  K+
+                  Potassium
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-secondary"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="calcium"
                 >
-                  Ca2+
+                  Calcium
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-secondary"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="morphology"
                 >
                   Morphology
                 </button>
               </div>
-            </div>
-            <div class="card-body">
               <div id="visualization" style="height: 500px"></div>
             </div>
           </div>
