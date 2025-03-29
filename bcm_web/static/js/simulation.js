@@ -25,78 +25,87 @@ $(document).ready(function () {
 function initPlots() {
   console.log("Initializing plots...");
 
-  // Initialize main visualization
-  Plotly.newPlot(
-    "visualization",
-    [
-      {
-        z: Array(10)
-          .fill()
-          .map(() => Array(10).fill(0)),
-        type: "heatmap",
-        colorscale: "Viridis",
-        colorbar: {
-          title: "Voltage (mV)",
-          titlefont: { color: "#fff" },
-          tickfont: { color: "#fff" },
+  try {
+    // Initialize main visualization with dummy data
+    const dummyData = Array(10)
+      .fill()
+      .map(() => Array(10).fill(0));
+
+    Plotly.newPlot(
+      "visualization",
+      [
+        {
+          z: dummyData,
+          type: "heatmap",
+          colorscale: "Viridis",
+          colorbar: {
+            title: "Voltage (mV)",
+            titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
+          },
         },
-      },
-    ],
-    {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      margin: { t: 10, l: 50, r: 50, b: 10 },
-    }
-  );
-
-  // Initialize time series plot
-  Plotly.newPlot(
-    "time-series",
-    [
+      ],
       {
-        x: [],
-        y: [],
-        type: "scatter",
-        mode: "lines",
-        line: { color: "#00ff00", width: 2 },
-        name: "Average Voltage",
-      },
-    ],
-    {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      margin: { t: 10, l: 50, r: 20, b: 40 },
-      xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
-      yaxis: { title: "Voltage", gridcolor: "#444", color: "#fff" },
-    }
-  );
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        margin: { t: 10, l: 50, r: 50, b: 10 },
+        height: 300, // Explicitly set height
+      }
+    );
 
-  // Initialize pattern metrics plot
-  Plotly.newPlot(
-    "pattern-metrics",
-    [
+    // Initialize time series plot
+    Plotly.newPlot(
+      "time-series",
+      [
+        {
+          x: [],
+          y: [],
+          type: "scatter",
+          mode: "lines",
+          line: { color: "#00ff00", width: 2 },
+          name: "Average Voltage",
+        },
+      ],
       {
-        x: [],
-        y: [],
-        type: "scatter",
-        mode: "lines",
-        line: { color: "#00ffff", width: 2 },
-        name: "Complexity",
-      },
-    ],
-    {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      margin: { t: 10, l: 50, r: 20, b: 40 },
-      xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
-      yaxis: { title: "Complexity", gridcolor: "#444", color: "#fff" },
-    }
-  );
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        margin: { t: 10, l: 50, r: 20, b: 40 },
+        xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
+        yaxis: { title: "Voltage", gridcolor: "#444", color: "#fff" },
+        height: 300, // Explicitly set height
+      }
+    );
 
-  console.log("Plots initialized");
+    // Initialize pattern metrics plot
+    Plotly.newPlot(
+      "pattern-metrics",
+      [
+        {
+          x: [],
+          y: [],
+          type: "scatter",
+          mode: "lines",
+          line: { color: "#00ffff", width: 2 },
+          name: "Complexity",
+        },
+      ],
+      {
+        paper_bgcolor: "#222",
+        plot_bgcolor: "#222",
+        font: { color: "#fff" },
+        margin: { t: 10, l: 50, r: 20, b: 40 },
+        xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
+        yaxis: { title: "Complexity", gridcolor: "#444", color: "#fff" },
+        height: 300, // Explicitly set height
+      }
+    );
+
+    console.log("Plots initialized successfully");
+  } catch (error) {
+    console.error("Error initializing plots:", error);
+  }
 }
 
 function loadScenarios() {
@@ -305,159 +314,179 @@ function runStep() {
 }
 
 function updateVisualization() {
-  console.log("Updating visualization with current state");
+  console.log("Updating visualization with state:", currentState);
 
   if (!currentState) {
     console.error("No current state available");
     return;
   }
 
+  // Add debug information to help troubleshoot
+  console.log("Current view:", currentView);
+  console.log(
+    "Voltage potential shape:",
+    currentState.voltage_potential
+      ? [
+          currentState.voltage_potential.length,
+          currentState.voltage_potential[0].length,
+        ]
+      : "undefined"
+  );
+
   // Select data based on current view
   let plotData = [];
 
-  if (currentView === "voltage" && currentState.voltage_potential) {
-    plotData = [
-      {
-        z: currentState.voltage_potential,
-        type: "heatmap",
-        colorscale: "Viridis",
-        colorbar: {
-          title: "Voltage (mV)",
-          titlefont: { color: "#fff" },
-          tickfont: { color: "#fff" },
+  try {
+    if (currentView === "voltage" && currentState.voltage_potential) {
+      plotData = [
+        {
+          z: currentState.voltage_potential,
+          type: "heatmap",
+          colorscale: "Viridis",
+          colorbar: {
+            title: "Voltage (mV)",
+            titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
+          },
         },
-      },
-    ];
-  } else if (currentView === "morphology" && currentState.morphological_state) {
-    // Convert 1D morphological state to 2D for visualization
-    const size = Math.sqrt(currentState.morphological_state.length);
-    let morphGrid = [];
+      ];
+    } else if (
+      currentView === "morphology" &&
+      currentState.morphological_state
+    ) {
+      // Convert 1D morphological state to 2D for visualization
+      const morphState = currentState.morphological_state;
+      const size = Math.floor(Math.sqrt(morphState.length));
+      let morphGrid = [];
 
-    for (let i = 0; i < size; i++) {
-      let row = [];
-      for (let j = 0; j < size; j++) {
-        row.push(currentState.morphological_state[i * size + j]);
+      for (let i = 0; i < size; i++) {
+        let row = [];
+        for (let j = 0; j < size; j++) {
+          const idx = i * size + j;
+          row.push(idx < morphState.length ? morphState[idx] : 0);
+        }
+        morphGrid.push(row);
       }
-      morphGrid.push(row);
+
+      plotData = [
+        {
+          z: morphGrid,
+          type: "heatmap",
+          colorscale: "Cividis",
+          colorbar: {
+            title: "Morphological State",
+            titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
+          },
+        },
+      ];
+    } else if (
+      currentState.ion_gradients &&
+      currentState.ion_gradients[currentView]
+    ) {
+      // Ion gradients (sodium, potassium, calcium)
+      let colorscale = "Hot";
+      if (currentView === "potassium") colorscale = "Blues";
+      if (currentView === "calcium") colorscale = "Greens";
+
+      plotData = [
+        {
+          z: currentState.ion_gradients[currentView],
+          type: "heatmap",
+          colorscale: colorscale,
+          colorbar: {
+            title: `${
+              currentView.charAt(0).toUpperCase() + currentView.slice(1)
+            } (mM)`,
+            titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
+          },
+        },
+      ];
     }
 
-    plotData = [
-      {
-        z: morphGrid,
-        type: "heatmap",
-        colorscale: "Cividis",
-        colorbar: {
-          title: "Morphological State",
-          titlefont: { color: "#fff" },
-          tickfont: { color: "#fff" },
-        },
-      },
-    ];
-  } else if (
-    currentState.ion_gradients &&
-    currentState.ion_gradients[currentView]
-  ) {
-    // Ion gradients (sodium, potassium, calcium)
-    let colorscale = "Hot";
-    if (currentView === "potassium") colorscale = "Blues";
-    if (currentView === "calcium") colorscale = "Greens";
+    // Update the main visualization with updated layout
+    Plotly.react("visualization", plotData, {
+      paper_bgcolor: "#222",
+      plot_bgcolor: "#222",
+      font: { color: "#fff" },
+      margin: { t: 10, l: 50, r: 50, b: 10 },
+      height: 300, // Explicitly set height
+    });
 
-    plotData = [
-      {
-        z: currentState.ion_gradients[currentView],
-        type: "heatmap",
-        colorscale: colorscale,
-        colorbar: {
-          title: `${
-            currentView.charAt(0).toUpperCase() + currentView.slice(1)
-          } (mM)`,
-          titlefont: { color: "#fff" },
-          tickfont: { color: "#fff" },
+    // Update time series plot if we have state data
+    if (currentState.voltage_potential) {
+      // Calculate average voltage
+      let totalVoltage = 0;
+      let count = 0;
+
+      for (let i = 0; i < currentState.voltage_potential.length; i++) {
+        for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
+          totalVoltage += currentState.voltage_potential[i][j];
+          count++;
+        }
+      }
+
+      const avgVoltage = totalVoltage / count;
+
+      // Calculate a simple "complexity" metric - standard deviation of voltage
+      let sumSquaredDiff = 0;
+      for (let i = 0; i < currentState.voltage_potential.length; i++) {
+        for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
+          sumSquaredDiff += Math.pow(
+            currentState.voltage_potential[i][j] - avgVoltage,
+            2
+          );
+        }
+      }
+
+      const complexity = Math.sqrt(sumSquaredDiff / count);
+
+      // Update time series
+      Plotly.extendTraces(
+        "time-series",
+        {
+          x: [[iterationCount]],
+          y: [[avgVoltage]],
         },
-      },
-    ];
+        [0]
+      );
+
+      // Update metrics
+      Plotly.extendTraces(
+        "pattern-metrics",
+        {
+          x: [[iterationCount]],
+          y: [[complexity]],
+        },
+        [0]
+      );
+
+      // Keep a limited window of data points
+      const maxPoints = 100;
+      if (iterationCount > maxPoints) {
+        Plotly.relayout("time-series", {
+          xaxis: {
+            range: [iterationCount - maxPoints, iterationCount],
+            color: "#fff",
+            gridcolor: "#444",
+          },
+        });
+
+        Plotly.relayout("pattern-metrics", {
+          xaxis: {
+            range: [iterationCount - maxPoints, iterationCount],
+            color: "#fff",
+            gridcolor: "#444",
+          },
+        });
+      }
+    }
+
+    console.log("Visualization updated successfully");
+  } catch (error) {
+    console.error("Error updating visualization:", error);
   }
-
-  // Update the main visualization
-  Plotly.react("visualization", plotData, {
-    paper_bgcolor: "#222",
-    plot_bgcolor: "#222",
-    font: { color: "#fff" },
-    margin: { t: 10, l: 50, r: 50, b: 10 },
-  });
-
-  // Update time series plot
-  if (currentState.voltage_potential) {
-    // Calculate average voltage
-    let totalVoltage = 0;
-    let count = 0;
-
-    for (let i = 0; i < currentState.voltage_potential.length; i++) {
-      for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
-        totalVoltage += currentState.voltage_potential[i][j];
-        count++;
-      }
-    }
-
-    const avgVoltage = totalVoltage / count;
-
-    // Calculate pattern complexity (simplified as standard deviation)
-    let sumSquaredDiff = 0;
-    for (let i = 0; i < currentState.voltage_potential.length; i++) {
-      for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
-        sumSquaredDiff += Math.pow(
-          currentState.voltage_potential[i][j] - avgVoltage,
-          2
-        );
-      }
-    }
-
-    const complexity = Math.sqrt(sumSquaredDiff / count);
-
-    // Update time series
-    Plotly.extendTraces(
-      "time-series",
-      {
-        x: [[iterationCount]],
-        y: [[avgVoltage]],
-      },
-      [0]
-    );
-
-    // Update complexity metrics
-    Plotly.extendTraces(
-      "pattern-metrics",
-      {
-        x: [[iterationCount]],
-        y: [[complexity]],
-      },
-      [0]
-    );
-
-    // Show only the last 50 data points for clarity
-    const maxPoints = 50;
-    if (iterationCount > maxPoints) {
-      Plotly.relayout("time-series", {
-        xaxis: {
-          range: [iterationCount - maxPoints, iterationCount],
-          title: "Iteration",
-          gridcolor: "#444",
-          color: "#fff",
-        },
-      });
-
-      Plotly.relayout("pattern-metrics", {
-        xaxis: {
-          range: [iterationCount - maxPoints, iterationCount],
-          title: "Iteration",
-          gridcolor: "#444",
-          color: "#fff",
-        },
-      });
-    }
-  }
-
-  console.log("Visualization updated");
 }
 
 // Run a single step when the page loads to initialize

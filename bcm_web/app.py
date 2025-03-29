@@ -498,164 +498,155 @@ def run_step():
         
         logger.info(f"Processing scenario: {scenario}, with state: {state_data is not None}")
         
-        # Update config with provided parameters
-        updated_config = update_config(default_config, config_updates)
-        
-        # Re-initialize models if config changed significantly
+        # Update configuration
+        global default_config
         if config_updates:
-            init_models(updated_config)
+            default_config = update_config(default_config, config_updates)
+            init_models(default_config)
         
-        # Create initial state if not provided
+        # Create or update state
+        global current_state
+        field_dim = default_config['core'].get('field_dimension', 10)
+        
+        # Create an initial state if none exists
         if not state_data:
-            # Create default initial state
-            grid_size = updated_config.get('core', {}).get('field_dimension', 10)
+            # Generate some interesting initial pattern (Gaussian bump)
+            voltage_potential = torch.zeros((field_dim, field_dim), device=device)
+            center_x, center_y = field_dim // 2, field_dim // 2
             
-            # Initialize with small random values
-            voltage_potential = torch.randn(grid_size, grid_size, device=device) * 0.01
-            
-            # Add a specific pattern for demonstration
-            if scenario == 'two_heads':
-                # Add two high-voltage regions suggesting two head formation sites
-                voltage_potential[1:3, 1:3] = 0.8  # Top head voltage pattern
-                voltage_potential[7:9, 7:9] = 0.8  # Bottom head voltage pattern
-            elif scenario == 'regeneration':
-                # Add gradient pattern simulating a cut area
-                for i in range(grid_size):
-                    for j in range(grid_size):
-                        if i > grid_size // 2:
-                            voltage_potential[i, j] = 0.5 * (1 - (i - grid_size//2) / (grid_size//2))
+            for i in range(field_dim):
+                for j in range(field_dim):
+                    # Distance from center
+                    dist = np.sqrt((i - center_x) ** 2 + (j - center_y) ** 2)
+                    # Gaussian formula: exp(-dist²/σ²)
+                    voltage_potential[i, j] = 0.9 * np.exp(-(dist ** 2) / (field_dim / 3) ** 2)
             
             ion_gradients = {
-                'sodium': torch.randn(grid_size, grid_size, device=device) * 0.01,
-                'potassium': torch.randn(grid_size, grid_size, device=device) * 0.01,
-                'calcium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+                'sodium': torch.ones((field_dim, field_dim), device=device) * 0.3,
+                'potassium': torch.ones((field_dim, field_dim), device=device) * 0.6,
+                'calcium': torch.ones((field_dim, field_dim), device=device) * 0.1
             }
             
-            morphological_state = torch.zeros(grid_size*grid_size, device=device)
+            morphological_state = torch.zeros(field_dim * field_dim, device=device)
             
-            # Create state dictionary for JSON serialization
-            state_data = {
-                'voltage_potential': voltage_potential.cpu().numpy().tolist(),
-                'ion_gradients': {
-                    ion: grad.cpu().numpy().tolist() for ion, grad in ion_gradients.items()
-                },
-                'morphological_state': morphological_state.cpu().numpy().tolist()
+            logger.info(f"Created initial state with dimensions: {field_dim}x{field_dim}")
+        else:
+            # Convert state data back to tensors
+            voltage_potential = torch.tensor(state_data['voltage_potential'], device=device)
+            ion_gradients = {
+                ion: torch.tensor(grad, device=device)
+                for ion, grad in state_data['ion_gradients'].items()
             }
-            logger.info(f"Created initial state with dimensions: {len(state_data['voltage_potential'])}x{len(state_data['voltage_potential'][0])}")
+            morphological_state = torch.tensor(state_data['morphological_state'], device=device)
         
-        # Convert state back to tensors for processing
-        voltage_potential = torch.tensor(state_data['voltage_potential'], device=device)
-        ion_gradients = {
-            ion: torch.tensor(grad, device=device) 
-            for ion, grad in state_data['ion_gradients'].items()
+        # Create BioelectricState
+        state = BioelectricState(
+            voltage_potential=voltage_potential,
+            ion_gradients=ion_gradients,
+            gap_junction_states=torch.ones_like(voltage_potential),
+            morphological_state=morphological_state
+        )
+        
+        # Process through models
+        state = models['core'](state)
+        if 'pattern_model' in models:
+            state = models['pattern_model'](state)
+        if 'colony' in models:
+            state = models['colony'](state)
+        if 'homeostasis' in models:
+            state = models['homeostasis'](state)
+        
+        # Update global state
+        voltage_shape = state.voltage_potential.shape
+        logger.info(f"Processed state, voltage shape: {voltage_shape[0]}x{voltage_shape[1]}")
+        
+        current_state = {
+            'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
+            'ion_gradients': {
+                ion: grad.cpu().numpy().tolist() 
+                for ion, grad in state.ion_gradients.items()
+            },
+            'morphological_state': state.morphological_state.cpu().numpy().tolist()
         }
-        morphological_state = torch.tensor(state_data['morphological_state'], device=device)
         
-        # Process state through models
-        try:
-            # Create BioelectricState object
-            state = BioelectricState(
-                voltage_potential=voltage_potential,
-                ion_gradients=ion_gradients,
-                gap_junction_states=torch.ones_like(voltage_potential),
-                morphological_state=morphological_state
-            )
-            
-            # Process through models
-            if 'core' in models:
-                state = models['core'](state)
-            if 'pattern_model' in models:
-                state = models['pattern_model'](state)
-            if 'colony' in models:
-                state = models['colony'](state)
-            if 'homeostasis' in models:
-                state = models['homeostasis'](state)
-            
-            # Convert back to Python native types for JSON serialization
-            result_state = {
-                'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
-                'ion_gradients': {
-                    ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
-                },
-                'morphological_state': state.morphological_state.cpu().numpy().tolist()
-            }
-            
-            logger.info(f"Processed state, voltage shape: {len(result_state['voltage_potential'])}x{len(result_state['voltage_potential'][0])}")
-            
-            return jsonify({
-                'success': True,
-                'state': result_state
-            })
-            
-        except Exception as e:
-            logger.error(f"Error in model processing: {str(e)}")
-            return jsonify({
-                'success': False,
-                'error': str(e)
-            })
-            
+        return jsonify({'success': True, 'state': current_state})
     except Exception as e:
         logger.error(f"Error in run_step: {str(e)}")
-        return jsonify({
-            'success': False, 
-            'error': str(e)
-        })
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/scenarios', methods=['GET'])
 def get_scenarios():
-    """Return available experimental scenarios."""
+    """Get available experimental scenarios."""
     scenarios = [
         {
             'id': 'default',
-            'name': 'Default Pattern',
-            'description': 'Standard bioelectric pattern formation'
+            'name': 'Default Pattern'
         },
         {
-            'id': 'two_heads',
-            'name': 'Two-Headed Planarian',
-            'description': 'Simulate Levin\'s experiment creating two-headed planarians'
+            'id': 'two_head_planarian',
+            'name': 'Two-Headed Planarian'
         },
         {
-            'id': 'eye_formation',
-            'name': 'Ectopic Eye Formation',
-            'description': 'Simulate eye formation in non-head tissue'
+            'id': 'eye_induction',
+            'name': 'Eye Induction'
+        },
+        {
+            'id': 'organ_reprogramming',
+            'name': 'Organ Reprogramming'
         }
     ]
     return jsonify(scenarios)
 
 @app.route('/api/parameters', methods=['GET'])
 def get_parameters():
-    """Return configurable parameters."""
+    """Get adjustable parameters for the simulation."""
     parameters = [
+        {
+            'section': 'core',
+            'name': 'field_dimension',
+            'label': 'Field Size',
+            'min': 5,
+            'max': 20,
+            'step': 1,
+            'default': 10
+        },
         {
             'section': 'core',
             'name': 'gap_junction_strength',
             'label': 'Gap Junction Strength',
-            'description': 'Controls cell-to-cell electrical coupling',
-            'min': 0.0,
-            'max': 1.0,
-            'step': 0.1,
-            'default': default_config['core'].get('gap_junction_strength', 0.5)
+            'min': 0,
+            'max': 1,
+            'step': 0.05,
+            'default': 0.5
         },
         {
-            'section': 'pattern_formation',
+            'section': 'morphology',
             'name': 'pattern_complexity',
             'label': 'Pattern Complexity',
-            'description': 'Controls complexity of emergent patterns',
-            'min': 0.1,
-            'max': 1.0,
-            'step': 0.1,
-            'default': default_config['pattern_formation'].get('pattern_complexity', 0.7)
+            'min': 0,
+            'max': 1,
+            'step': 0.05,
+            'default': 0.7
+        },
+        {
+            'section': 'morphology',
+            'name': 'reaction_rate',
+            'label': 'Reaction Rate',
+            'min': 0.01,
+            'max': 0.5,
+            'step': 0.01,
+            'default': 0.1
         },
         {
             'section': 'homeostasis',
             'name': 'homeostasis_strength',
             'label': 'Homeostasis Strength',
-            'description': 'How strongly system maintains target states',
-            'min': 0.0,
-            'max': 1.0,
-            'step': 0.1,
-            'default': default_config['homeostasis'].get('homeostasis_strength', 0.5)
+            'min': 0,
+            'max': 1,
+            'step': 0.05,
+            'default': 0.8
         }
     ]
     return jsonify(parameters)

@@ -16,77 +16,71 @@ class SimplifiedBioelectricCore(nn.Module):
         
     def forward(self, state):
         """Process a state through simplified bioelectric dynamics."""
-        # Extract components
-        voltage = state.voltage_potential
-        ion_gradients = state.ion_gradients
+        # Extract voltage and ensure it's the right shape
+        if len(state.voltage_potential.shape) != 2:
+            voltage = state.voltage_potential.reshape(self.field_dimension, self.field_dimension)
+        else:
+            voltage = state.voltage_potential
+            
+        # Create a copy so we don't modify the original
+        new_voltage = voltage.clone()
         
-        # Simple voltage diffusion through gap junctions
-        voltage_laplacian = self._compute_laplacian(voltage)
-        voltage_diffusion = self.gap_junction_strength * voltage_laplacian
+        # Apply gap junction diffusion (simplified)
+        kernel = torch.tensor([
+            [0.05, 0.1, 0.05],
+            [0.1, 0.4, 0.1],
+            [0.05, 0.1, 0.05]
+        ], device=voltage.device)
         
-        # Simple ion channel effects (depolarization/repolarization)
-        sodium_effect = 0.1 * ion_gradients['sodium']
-        potassium_effect = -0.05 * ion_gradients['potassium']
-        calcium_effect = 0.08 * ion_gradients['calcium']
+        # Apply convolution manually (simplified diffusion)
+        for i in range(1, voltage.shape[0] - 1):
+            for j in range(1, voltage.shape[1] - 1):
+                # Apply kernel to neighborhood
+                new_voltage[i, j] = torch.sum(
+                    voltage[i-1:i+2, j-1:j+2] * kernel
+                )
         
-        # Update voltage
-        voltage_update = voltage_diffusion + sodium_effect + potassium_effect + calcium_effect
-        new_voltage = voltage + 0.1 * voltage_update
+        # Apply homeostatic drive toward resting potential
+        homeostatic_drive = self.resting_potential - new_voltage
+        new_voltage += 0.1 * homeostatic_drive
         
-        # Apply non-linearity to keep values in reasonable range
+        # Apply non-linear activation (similar to voltage-gated channels)
         new_voltage = torch.tanh(new_voltage)
         
-        # Simple updates to ion gradients based on voltage
-        new_sodium = ion_gradients['sodium'] * 0.95 + 0.05 * torch.relu(new_voltage)
-        new_potassium = ion_gradients['potassium'] * 0.95 + 0.05 * torch.relu(-new_voltage)
-        new_calcium = ion_gradients['calcium'] * 0.95 + 0.05 * torch.abs(new_voltage)
+        # Create updated ion gradients (simplified)
+        new_ion_gradients = {}
+        for ion_name, gradient in state.ion_gradients.items():
+            if ion_name == 'sodium':
+                # Sodium follows voltage
+                new_grad = torch.sigmoid(new_voltage) 
+            elif ion_name == 'potassium':
+                # Potassium is inverse to voltage
+                new_grad = 1 - torch.sigmoid(new_voltage)
+            else:
+                # Others change more slowly
+                new_grad = gradient * 0.9 + torch.sigmoid(new_voltage) * 0.1
+            new_ion_gradients[ion_name] = new_grad
         
-        # Create updated state
+        # Update morphological state (integrate voltage information)
+        if len(state.morphological_state.shape) != 1:
+            morphological_state = state.morphological_state.flatten()
+        else:
+            morphological_state = state.morphological_state
+        
+        # Reshape voltage to update morphology
+        flat_voltage = new_voltage.flatten()
+        n = min(len(morphological_state), len(flat_voltage))
+        
+        # Simple integration of voltage into morphological state
+        new_morphological_state = morphological_state.clone()
+        new_morphological_state[:n] = morphological_state[:n] * 0.95 + flat_voltage[:n] * 0.05
+        
+        # Create new state
         new_state = BioelectricState(
             voltage_potential=new_voltage,
-            ion_gradients={
-                'sodium': new_sodium,
-                'potassium': new_potassium,
-                'calcium': new_calcium
-            },
+            ion_gradients=new_ion_gradients,
             gap_junction_states=state.gap_junction_states,
-            morphological_state=state.morphological_state
+            morphological_state=new_morphological_state
         )
         
         return new_state
-    
-    def _compute_laplacian(self, tensor):
-        """Compute discrete Laplacian operator (for diffusion)."""
-        # Get dimensions
-        h, w = tensor.shape
-        
-        # Compute discrete Laplacian using convolution-like operations
-        laplacian = torch.zeros_like(tensor)
-        
-        # Internal points
-        for i in range(1, h-1):
-            for j in range(1, w-1):
-                laplacian[i, j] = (
-                    tensor[i+1, j] + tensor[i-1, j] + 
-                    tensor[i, j+1] + tensor[i, j-1] - 
-                    4 * tensor[i, j]
-                )
-                
-        # Handle boundary conditions (no-flux)
-        # Top and bottom edges
-        for j in range(1, w-1):
-            laplacian[0, j] = 2 * tensor[1, j] + tensor[0, j+1] + tensor[0, j-1] - 4 * tensor[0, j]
-            laplacian[h-1, j] = 2 * tensor[h-2, j] + tensor[h-1, j+1] + tensor[h-1, j-1] - 4 * tensor[h-1, j]
-        
-        # Left and right edges
-        for i in range(1, h-1):
-            laplacian[i, 0] = tensor[i+1, 0] + tensor[i-1, 0] + 2 * tensor[i, 1] - 4 * tensor[i, 0]
-            laplacian[i, w-1] = tensor[i+1, w-1] + tensor[i-1, w-1] + 2 * tensor[i, w-2] - 4 * tensor[i, w-1]
-        
-        # Corners
-        laplacian[0, 0] = 2 * tensor[1, 0] + 2 * tensor[0, 1] - 4 * tensor[0, 0]
-        laplacian[0, w-1] = 2 * tensor[1, w-1] + 2 * tensor[0, w-2] - 4 * tensor[0, w-1]
-        laplacian[h-1, 0] = 2 * tensor[h-2, 0] + 2 * tensor[h-1, 1] - 4 * tensor[h-1, 0]
-        laplacian[h-1, w-1] = 2 * tensor[h-2, w-1] + 2 * tensor[h-1, w-2] - 4 * tensor[h-1, w-1]
-        
-        return laplacian
