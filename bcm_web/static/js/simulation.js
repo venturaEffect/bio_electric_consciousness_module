@@ -10,12 +10,17 @@ $(document).ready(function () {
     complexity: [],
   };
 
+  console.log("Page loaded, initializing interface...");
+
   // Initialize plots with dark theme
   initPlots();
 
   // Load scenarios and parameters
   loadScenarios();
   loadParameters();
+
+  // Run initial simulation to get starting state
+  resetSimulation();
 
   // Event handlers
   $("#scenario-select").change(function () {
@@ -444,6 +449,7 @@ $(document).ready(function () {
     }
   }
 
+  // Make sure this function properly handles response errors
   function runSimulationStep() {
     // Collect updated parameters
     const configUpdates = {};
@@ -467,6 +473,8 @@ $(document).ready(function () {
       scenario: $("#scenario-select").val(),
     };
 
+    console.log("Sending request with data:", requestData);
+
     // Send request to server
     $.ajax({
       url: "/api/run_step",
@@ -474,6 +482,8 @@ $(document).ready(function () {
       contentType: "application/json",
       data: JSON.stringify(requestData),
       success: function (response) {
+        console.log("Received response:", response);
+
         if (response.success) {
           currentState = response.state;
           iterationCount++;
@@ -484,16 +494,20 @@ $(document).ready(function () {
         } else {
           console.error("Error running simulation step:", response.error);
           stopAutoRun();
+          alert("Error: " + response.error);
         }
       },
       error: function (xhr, status, error) {
-        console.error("AJAX error:", error);
+        console.error("AJAX error:", xhr.responseText);
         stopAutoRun();
+        alert("Network error: " + error);
       },
     });
   }
 
+  // Make sure to initialize properly
   function resetSimulation() {
+    console.log("Resetting simulation");
     // Stop auto-run if active
     stopAutoRun();
 
@@ -503,73 +517,26 @@ $(document).ready(function () {
     $("#iteration-count").val(0);
 
     // Reset time series data
-    Plotly.react(
-      "time-series",
-      [
-        {
-          x: [],
-          y: [],
-          type: "scatter",
-          mode: "lines",
-          name: "Avg Voltage",
-          line: { color: "#00ffff" },
-        },
-      ],
+    Plotly.react("time-series", [
       {
-        paper_bgcolor: "#222",
-        plot_bgcolor: "#222",
-        font: { color: "#fff" },
-        title: {
-          text: "Average Voltage Over Time",
-          font: { color: "#fff" },
-        },
-        xaxis: {
-          title: { text: "Iteration", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        yaxis: {
-          title: { text: "Value", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        margin: { t: 30, l: 40, r: 10, b: 40 },
-      }
-    );
+        x: [],
+        y: [],
+        type: "scatter",
+        mode: "lines",
+        name: "Avg Voltage",
+      },
+    ]);
 
-    Plotly.react(
-      "pattern-metrics",
-      [
-        {
-          x: [],
-          y: [],
-          type: "scatter",
-          mode: "lines",
-          name: "Complexity",
-          line: { color: "#ff9500" },
-        },
-      ],
+    Plotly.react("pattern-metrics", [
       {
-        paper_bgcolor: "#222",
-        plot_bgcolor: "#222",
-        font: { color: "#fff" },
-        title: {
-          text: "Pattern Complexity",
-          font: { color: "#fff" },
-        },
-        xaxis: {
-          title: { text: "Iteration", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        yaxis: {
-          title: { text: "Complexity", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        margin: { t: 30, l: 40, r: 10, b: 40 },
-      }
-    );
+        x: [],
+        y: [],
+        type: "scatter",
+        mode: "lines",
+        name: "Complexity",
+        line: { color: "orange" },
+      },
+    ]);
 
     // Run initial simulation step to get starting state
     runSimulationStep();

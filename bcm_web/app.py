@@ -8,6 +8,7 @@ import yaml
 import logging
 from typing import Dict, Any, List, Optional
 import copy
+import datetime
 
 # Add parent directory to path so we can import BCM modules
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -491,7 +492,7 @@ def run_step():
     try:
         data = request.json
         config_updates = data.get('config_updates', {})
-        current_state = data.get('state', None)
+        state_data = data.get('state', None)
         
         # Update config with provided parameters
         updated_config = update_config(default_config, config_updates)
@@ -501,7 +502,7 @@ def run_step():
             init_models(updated_config)
         
         # Create initial state if not provided
-        if not current_state:
+        if not state_data:
             # Create default initial state
             grid_size = updated_config['core'].get('field_dimension', 10)
             
@@ -523,24 +524,23 @@ def run_step():
             morphological_state = torch.zeros(grid_size*grid_size, device=device)
             
             # Create state dictionary for JSON serialization
-            current_state = {
+            state_data = {
                 'voltage_potential': voltage_potential.cpu().numpy().tolist(),
                 'ion_gradients': {
-                    ion: grad.cpu().numpy().tolist() for ion, grad in current_state['ion_gradients'].items()
+                    ion: grad.cpu().numpy().tolist() for ion, grad in ion_gradients.items()
                 },
                 'morphological_state': morphological_state.cpu().numpy().tolist()
             }
         
         # Convert state back to tensors for processing
-        voltage_potential = torch.tensor(current_state['voltage_potential'], device=device)
+        voltage_potential = torch.tensor(state_data['voltage_potential'], device=device)
         ion_gradients = {
             ion: torch.tensor(grad, device=device) 
-            for ion, grad in current_state['ion_gradients'].items()
+            for ion, grad in state_data['ion_gradients'].items()
         }
-        morphological_state = torch.tensor(current_state['morphological_state'], device=device)
+        morphological_state = torch.tensor(state_data['morphological_state'], device=device)
         
         # Create BioelectricState object
-        from bcm.core.bioelectric_core import BioelectricState
         state = BioelectricState(
             voltage_potential=voltage_potential,
             ion_gradients=ion_gradients,
@@ -563,6 +563,10 @@ def run_step():
                 },
                 'morphological_state': state.morphological_state.cpu().numpy().tolist()
             }
+            
+            # Update global state
+            global current_state
+            current_state = result_state
             
             return jsonify({
                 'success': True,
@@ -874,6 +878,15 @@ def convert_to_plotly_format(data, data_type='voltage'):
     }
     
     return plot_data
+
+@app.route('/api/test', methods=['GET'])
+def api_test():
+    """Simple endpoint to test API connectivity."""
+    return jsonify({
+        'success': True,
+        'message': 'API is working!',
+        'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
