@@ -1,48 +1,40 @@
 // Global variables
 let currentState = null;
-let iterationCount = 0;
-let autoRunInterval = null;
 let currentView = "voltage";
+let iterationCount = 0;
+let simulationRunning = false;
+let simulationInterval = null;
 
-// Initialize when the document is ready
+// Initialize application when DOM is ready
 $(document).ready(function () {
-  console.log("Document ready, initializing application...");
+  console.log("Initializing application");
 
-  // Initialize plots with empty data
+  // Initialize plots
   initPlots();
 
-  // Load scenarios and parameters
+  // Load scenarios
   loadScenarios();
+
+  // Load parameters
   loadParameters();
 
   // Set up event handlers
   setupEventHandlers();
-
-  // Reset simulation to initialize with default state
-  resetSimulation();
-
-  console.log("Initialization completed");
 });
 
-// Initialize visualization plots
 function initPlots() {
   console.log("Initializing plots...");
 
-  // Create initial empty grid for visualization
-  const size = 10; // Default size
-  const emptyGrid = Array(size)
-    .fill()
-    .map(() => Array(size).fill(0));
-
-  // Main visualization
+  // Initialize main visualization
   Plotly.newPlot(
     "visualization",
     [
       {
-        z: emptyGrid,
+        z: Array(10)
+          .fill()
+          .map(() => Array(10).fill(0)),
         type: "heatmap",
         colorscale: "Viridis",
-        showscale: true,
         colorbar: {
           title: "Voltage (mV)",
           titlefont: { color: "#fff" },
@@ -58,7 +50,7 @@ function initPlots() {
     }
   );
 
-  // Time series plot
+  // Initialize time series plot
   Plotly.newPlot(
     "time-series",
     [
@@ -67,22 +59,21 @@ function initPlots() {
         y: [],
         type: "scatter",
         mode: "lines",
-        name: "Avg Voltage",
-        line: { color: "#00ff00" },
+        line: { color: "#00ff00", width: 2 },
+        name: "Average Voltage",
       },
     ],
     {
       paper_bgcolor: "#222",
       plot_bgcolor: "#222",
       font: { color: "#fff" },
-      title: { text: "Voltage Potential Over Time", font: { color: "#fff" } },
-      xaxis: { title: "Iterations", color: "#fff", gridcolor: "#444" },
-      yaxis: { title: "Average Voltage", color: "#fff", gridcolor: "#444" },
-      margin: { t: 30, l: 60, r: 10, b: 40 },
+      margin: { t: 10, l: 50, r: 20, b: 40 },
+      xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
+      yaxis: { title: "Voltage", gridcolor: "#444", color: "#fff" },
     }
   );
 
-  // Pattern metrics
+  // Initialize pattern metrics plot
   Plotly.newPlot(
     "pattern-metrics",
     [
@@ -91,385 +82,190 @@ function initPlots() {
         y: [],
         type: "scatter",
         mode: "lines",
+        line: { color: "#00ffff", width: 2 },
         name: "Complexity",
-        line: { color: "#00ffff" },
       },
     ],
     {
       paper_bgcolor: "#222",
       plot_bgcolor: "#222",
       font: { color: "#fff" },
-      title: { text: "Pattern Complexity", font: { color: "#fff" } },
-      xaxis: { title: "Iterations", color: "#fff", gridcolor: "#444" },
-      yaxis: { title: "Complexity", color: "#fff", gridcolor: "#444" },
-      margin: { t: 30, l: 60, r: 10, b: 40 },
+      margin: { t: 10, l: 50, r: 20, b: 40 },
+      xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
+      yaxis: { title: "Complexity", gridcolor: "#444", color: "#fff" },
     }
   );
 
-  console.log("Plots initialized successfully");
+  console.log("Plots initialized");
 }
 
-// Setup all event handlers
+function loadScenarios() {
+  $.get("/api/scenarios", function (data) {
+    const select = $("#scenario-select");
+    select.empty();
+
+    data.forEach((scenario) => {
+      select.append(`<option value="${scenario.id}">${scenario.name}</option>`);
+    });
+
+    console.log("Scenarios loaded:", data.length);
+  });
+}
+
+function loadParameters() {
+  $.get("/api/parameters", function (data) {
+    const container = $("#parameter-controls");
+    container.empty();
+
+    data.forEach((param) => {
+      container.append(`
+                <div class="mb-3">
+                    <label for="${param.section}-${param.name}" class="form-label">${param.label}</label>
+                    <input type="range" class="form-range parameter-slider" 
+                           id="${param.section}-${param.name}" 
+                           data-section="${param.section}"
+                           data-name="${param.name}"
+                           min="${param.min}" max="${param.max}" step="${param.step}" 
+                           value="${param.default}">
+                    <div class="d-flex justify-content-between">
+                        <small>${param.min}</small>
+                        <small class="parameter-value">${param.default}</small>
+                        <small>${param.max}</small>
+                    </div>
+                </div>
+            `);
+    });
+
+    // Update value display when slider changes
+    $(".parameter-slider").on("input", function () {
+      $(this).siblings("div").find(".parameter-value").text($(this).val());
+    });
+
+    console.log("Parameters loaded:", data.length);
+  });
+}
+
 function setupEventHandlers() {
-  // View selector buttons
-  $(".btn-group button").on("click", function () {
-    $(".btn-group button").removeClass("active");
-    $(this).addClass("active");
-    currentView = $(this).data("view");
-    updateVisualization();
-  });
-
-  // Reset button
-  $("#reset-simulation").on("click", function () {
-    resetSimulation();
-  });
-
-  // Run/stop button
-  $("#run-simulation").on("click", function () {
-    if ($(this).text() === "Run") {
-      startAutoRun();
-      $(this).text("Stop");
+  // Start button
+  $("#start-btn").click(function () {
+    if (!simulationRunning) {
+      startSimulation();
     } else {
-      stopAutoRun();
-      $(this).text("Run");
+      pauseSimulation();
     }
   });
 
   // Step button
-  $("#step-button").on("click", function () {
-    runSimulationStep();
+  $("#step-btn").click(function () {
+    runStep();
   });
 
-  // Auto-run checkbox
-  $("#auto-run").on("change", function () {
-    if ($(this).is(":checked")) {
-      startAutoRun();
-      $("#run-simulation").text("Stop");
-    } else {
-      stopAutoRun();
-      $("#run-simulation").text("Run");
-    }
-  });
-
-  // Scenario selector
-  $("#scenario-select").on("change", function () {
+  // Reset button
+  $("#reset-btn").click(function () {
     resetSimulation();
   });
 
-  // Intensity slider
-  $("#intensity-slider").on("input", function () {
-    $("#intensity-value").text($(this).val());
-  });
+  // View selector
+  $('.btn-group[role="group"] .btn').click(function () {
+    $('.btn-group[role="group"] .btn').removeClass("active");
+    $(this).addClass("active");
+    currentView = $(this).data("view");
 
-  // Visualization click for injection
-  $("#visualization").on("click", function (event) {
-    // Get click coordinates and convert to grid position
-    const container = document.getElementById("visualization");
-    const rect = container.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    // Grid size
-    const size = currentState.voltage_potential.length;
-    const cellWidth = rect.width / size;
-    const cellHeight = rect.height / size;
-
-    // Calculate grid indices
-    const col = Math.floor(x / cellWidth);
-    const row = Math.floor(y / cellHeight);
-
-    // Ensure we're within bounds
-    if (row >= 0 && row < size && col >= 0 && col < size) {
-      // Get selected ion and intensity
-      const selectedIon = $("#ion-selector").val();
-      const intensity = parseFloat($("#intensity-slider").val());
-
-      // Call API to modify cell
-      modifyCell(row, col, selectedIon, intensity);
+    if (currentState) {
+      updateVisualization();
     }
   });
 
-  // Export data button
-  $("#export-data").on("click", function () {
-    exportData();
-  });
-}
+  // Click on visualization to modify cell
+  $("#visualization").on("click", function (e) {
+    if (!currentState) return;
 
-// Load available scenarios from API
-function loadScenarios() {
-  $.ajax({
-    url: "/api/scenarios",
-    type: "GET",
-    success: function (data) {
-      const select = $("#scenario-select");
-      select.empty();
+    const rect = e.target.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
 
-      data.scenarios.forEach(function (scenario) {
-        select.append(
-          $("<option></option>").attr("value", scenario.id).text(scenario.name)
-        );
+    // Convert click coordinates to cell grid coordinates
+    const width = $(this).width();
+    const height = $(this).height();
+    const gridSize = currentState.voltage_potential.length;
 
-        // Set description for first scenario
-        if (select.val() === scenario.id) {
-          $("#scenario-description").text(scenario.description);
-        }
-      });
+    const x = Math.floor((offsetX / width) * gridSize);
+    const y = Math.floor((offsetY / height) * gridSize);
 
-      // Update description when selection changes
-      select.on("change", function () {
-        const scenarioId = $(this).val();
-        const scenario = data.scenarios.find((s) => s.id === scenarioId);
-        $("#scenario-description").text(scenario ? scenario.description : "");
-      });
-    },
-    error: function (xhr, status, error) {
-      console.error("Error loading scenarios:", error);
-      $("#scenario-description").text("Failed to load scenarios from server.");
-    },
-  });
-}
+    // Get sliders values
+    const intensity = parseFloat($("#homeostasis-homeostasis_strength").val());
 
-// Load parameters from API
-function loadParameters() {
-  $.ajax({
-    url: "/api/parameters",
-    type: "GET",
-    success: function (data) {
-      const container = $("#parameters-container");
-      container.empty();
-
-      // Create accordion for parameter sections
-      const accordion = $(
-        '<div class="accordion" id="parameters-accordion"></div>'
-      );
-      container.append(accordion);
-
-      // Process each section
-      Object.keys(data.parameters).forEach(function (section, index) {
-        const params = data.parameters[section];
-        const sectionId = `section-${section
-          .replace(/\s+/g, "-")
-          .toLowerCase()}`;
-
-        // Create accordion item
-        const accordionItem = $(`
-                    <div class="accordion-item bg-dark border-secondary">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button bg-dark text-light collapsed" type="button" 
-                                    data-bs-toggle="collapse" data-bs-target="#${sectionId}">
-                                ${section}
-                            </button>
-                        </h2>
-                        <div id="${sectionId}" class="accordion-collapse collapse" 
-                             data-bs-parent="#parameters-accordion">
-                            <div class="accordion-body"></div>
-                        </div>
-                    </div>
-                `);
-
-        accordion.append(accordionItem);
-
-        // Add parameters to this section
-        const body = accordionItem.find(".accordion-body");
-
-        Object.keys(params).forEach(function (name) {
-          const param = params[name];
-          const inputId = `param-${section}-${name}`
-            .replace(/\s+/g, "-")
-            .toLowerCase();
-
-          const formGroup = $(`
-                        <div class="mb-3">
-                            <label for="${inputId}" class="form-label">${
-            param.display_name || name
-          }</label>
-                            <input type="range" class="form-range parameter-control" 
-                                   id="${inputId}" min="${param.min}" max="${
-            param.max
-          }" 
-                                   step="${param.step}" value="${param.default}"
-                                   data-section="${section}" data-name="${name}">
-                            <div class="d-flex justify-content-between">
-                                <span class="small">${param.min}</span>
-                                <span class="small param-value">${
-                                  param.default
-                                }</span>
-                                <span class="small">${param.max}</span>
-                            </div>
-                        </div>
-                    `);
-
-          body.append(formGroup);
-
-          // Update displayed value when slider changes
-          formGroup.find(".form-range").on("input", function () {
-            formGroup.find(".param-value").text($(this).val());
-          });
-        });
-      });
-
-      // Open first section by default
-      accordion.find(".accordion-collapse").first().addClass("show");
-      accordion.find(".accordion-button").first().removeClass("collapsed");
-    },
-    error: function (xhr, status, error) {
-      console.error("Error loading parameters:", error);
-      $("#parameters-container").html(
-        '<p class="text-danger">Failed to load parameters.</p>'
-      );
-    },
-  });
-}
-
-// Update the visualization with current state data
-function updateVisualization() {
-  console.log("Updating visualization with current state:", currentState);
-
-  if (!currentState || !currentState.voltage_potential) {
-    console.error("Invalid state data for visualization");
-    return;
-  }
-
-  let plotData = [];
-  let colorScale = "Viridis";
-  let title = "Voltage (mV)";
-
-  // Select data and appearance based on current view
-  switch (currentView) {
-    case "voltage":
-      plotData = currentState.voltage_potential;
-      colorScale = "Viridis";
-      title = "Voltage (mV)";
-      break;
-
-    case "sodium":
-      plotData = currentState.ion_gradients.sodium;
-      colorScale = "Hot";
-      title = "Sodium (mM)";
-      break;
-
-    case "potassium":
-      plotData = currentState.ion_gradients.potassium;
-      colorScale = "Blues";
-      title = "Potassium (mM)";
-      break;
-
-    case "calcium":
-      plotData = currentState.ion_gradients.calcium;
-      colorScale = "Greens";
-      title = "Calcium (mM)";
-      break;
-
-    case "morphology":
-      // Reshape morphological state to 2D grid
-      const size = Math.sqrt(currentState.morphological_state.length);
-      plotData = [];
-      for (let i = 0; i < size; i++) {
-        const row = [];
-        for (let j = 0; j < size; j++) {
-          row.push(currentState.morphological_state[i * size + j]);
-        }
-        plotData.push(row);
-      }
-      colorScale = "Portland";
-      title = "Morphological State";
-      break;
-  }
-
-  // Update the main visualization
-  Plotly.react(
-    "visualization",
-    [
+    // Modify cell
+    $.post(
+      "/api/modify_cell",
       {
-        z: plotData,
-        type: "heatmap",
-        colorscale: colorScale,
-        showscale: true,
-        colorbar: {
-          title: title,
-          titlefont: { color: "#fff" },
-          tickfont: { color: "#fff" },
-        },
+        x: y, // Swap x/y for correct orientation in heatmap
+        y: x,
+        ion: currentView === "voltage" ? "voltage" : currentView,
+        intensity: intensity,
       },
-    ],
+      function (response) {
+        if (response.success) {
+          currentState = response.state;
+          updateVisualization();
+        }
+      }
+    );
+  });
+}
+
+function startSimulation() {
+  simulationRunning = true;
+  $("#start-btn")
+    .text("Pause")
+    .removeClass("btn-outline-primary")
+    .addClass("btn-outline-warning");
+
+  // Run simulation at approximately 10 FPS
+  simulationInterval = setInterval(function () {
+    runStep();
+  }, 100);
+}
+
+function pauseSimulation() {
+  simulationRunning = false;
+  $("#start-btn")
+    .text("Start")
+    .removeClass("btn-outline-warning")
+    .addClass("btn-outline-primary");
+
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+  }
+}
+
+function resetSimulation() {
+  pauseSimulation();
+  iterationCount = 0;
+  $("#iteration-counter").text("Iteration: 0");
+
+  // Get selected scenario
+  const scenario = $("#scenario-select").val();
+
+  // Initialize simulation with selected scenario
+  $.post(
+    "/api/init_simulation",
     {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      margin: { t: 10, l: 50, r: 50, b: 10 },
+      scenario: scenario,
+    },
+    function (response) {
+      if (response.success) {
+        currentState = response.state;
+        updateVisualization();
+      }
     }
   );
-
-  // Update time series charts if we have voltage data
-  if (currentState.voltage_potential) {
-    // Calculate average voltage
-    let sum = 0;
-    let count = 0;
-    currentState.voltage_potential.forEach((row) => {
-      row.forEach((val) => {
-        sum += val;
-        count++;
-      });
-    });
-    const avgVoltage = sum / count;
-
-    // Calculate complexity (using standard deviation as a simple metric)
-    let sumSqDiff = 0;
-    currentState.voltage_potential.forEach((row) => {
-      row.forEach((val) => {
-        sumSqDiff += Math.pow(val - avgVoltage, 2);
-      });
-    });
-    const complexity = Math.sqrt(sumSqDiff / count);
-
-    // Update time series plot
-    Plotly.extendTraces(
-      "time-series",
-      {
-        x: [[iterationCount]],
-        y: [[avgVoltage]],
-      },
-      [0]
-    );
-
-    // Update complexity plot
-    Plotly.extendTraces(
-      "pattern-metrics",
-      {
-        x: [[iterationCount]],
-        y: [[complexity]],
-      },
-      [0]
-    );
-
-    // Keep a reasonable window of data points visible
-    const maxDataPoints = 100;
-    if (iterationCount > maxDataPoints) {
-      Plotly.relayout("time-series", {
-        xaxis: {
-          range: [iterationCount - maxDataPoints, iterationCount],
-          color: "#fff",
-          gridcolor: "#444",
-        },
-      });
-
-      Plotly.relayout("pattern-metrics", {
-        xaxis: {
-          range: [iterationCount - maxDataPoints, iterationCount],
-          color: "#fff",
-          gridcolor: "#444",
-        },
-      });
-    }
-  }
 }
 
-// Run one simulation step
-function runSimulationStep() {
-  // Collect current parameter values
-  const configUpdates = {};
-
-  $(".parameter-control").each(function () {
+function runStep() {
+  // Get current parameter values
+  let configUpdates = {};
+  $(".parameter-slider").each(function () {
     const section = $(this).data("section");
     const name = $(this).data("name");
     const value = parseFloat($(this).val());
@@ -481,211 +277,193 @@ function runSimulationStep() {
     configUpdates[section][name] = value;
   });
 
-  // Build request data
-  const requestData = {
-    config_updates: configUpdates,
-    state: currentState,
-    scenario: $("#scenario-select").val(),
-  };
+  // Get selected scenario
+  const scenario = $("#scenario-select").val();
 
-  console.log("Sending request data:", requestData);
-
-  // Send to server
-  $.ajax({
-    url: "/api/run_step",
-    type: "POST",
-    contentType: "application/json",
-    data: JSON.stringify(requestData),
-    success: function (response) {
-      console.log("Received response:", response);
-
+  // Send request to run a step
+  $.post(
+    "/api/run_step",
+    {
+      config_updates: configUpdates,
+      state: currentState,
+      scenario: scenario,
+    },
+    function (response) {
       if (response.success) {
-        // Update state and iteration count
+        // Update state
         currentState = response.state;
+
+        // Update iteration count
         iterationCount++;
-        $("#iteration-count").val(iterationCount);
+        $("#iteration-counter").text("Iteration: " + iterationCount);
 
         // Update visualization
         updateVisualization();
-      } else {
-        console.error("Error running simulation step:", response.error);
-        if (autoRunInterval) {
-          stopAutoRun();
-        }
-        alert("Error: " + response.error);
       }
-    },
-    error: function (xhr, status, error) {
-      console.error("AJAX error:", xhr.status, error);
-      if (autoRunInterval) {
-        stopAutoRun();
-      }
-      alert("Network error: " + error);
-    },
-  });
-}
-
-// Start auto-running the simulation
-function startAutoRun() {
-  if (!autoRunInterval) {
-    autoRunInterval = setInterval(runSimulationStep, 200);
-    $("#auto-run").prop("checked", true);
-    $("#run-simulation").text("Stop");
-  }
-}
-
-// Stop auto-running the simulation
-function stopAutoRun() {
-  if (autoRunInterval) {
-    clearInterval(autoRunInterval);
-    autoRunInterval = null;
-    $("#auto-run").prop("checked", false);
-    $("#run-simulation").text("Run");
-  }
-}
-
-// Reset simulation to initial state
-function resetSimulation() {
-  console.log("Resetting simulation");
-
-  // Stop auto-run if active
-  stopAutoRun();
-
-  // Reset state and iteration counter
-  currentState = null;
-  iterationCount = 0;
-  $("#iteration-count").val(0);
-
-  // Clear charts
-  Plotly.react(
-    "time-series",
-    [
-      {
-        x: [],
-        y: [],
-        type: "scatter",
-        mode: "lines",
-        name: "Avg Voltage",
-        line: { color: "#00ff00" },
-      },
-    ],
-    {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      title: { text: "Voltage Potential Over Time", font: { color: "#fff" } },
-      xaxis: { title: "Iterations", color: "#fff", gridcolor: "#444" },
-      yaxis: { title: "Average Voltage", color: "#fff", gridcolor: "#444" },
-      margin: { t: 30, l: 60, r: 10, b: 40 },
     }
   );
-
-  Plotly.react(
-    "pattern-metrics",
-    [
-      {
-        x: [],
-        y: [],
-        type: "scatter",
-        mode: "lines",
-        name: "Complexity",
-        line: { color: "#00ffff" },
-      },
-    ],
-    {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      title: { text: "Pattern Complexity", font: { color: "#fff" } },
-      xaxis: { title: "Iterations", color: "#fff", gridcolor: "#444" },
-      yaxis: { title: "Complexity", color: "#fff", gridcolor: "#444" },
-      margin: { t: 30, l: 60, r: 10, b: 40 },
-    }
-  );
-
-  // Run initial simulation step to get starting state
-  runSimulationStep();
 }
 
-// Modify a cell in the grid
-function modifyCell(row, col, type, intensity) {
+function updateVisualization() {
+  console.log("Updating visualization with current state");
+
   if (!currentState) {
-    console.error("No current state to modify");
+    console.error("No current state available");
     return;
   }
 
-  $.ajax({
-    url: "/api/modify_cell",
-    type: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({
-      row: row,
-      col: col,
-      type: type,
-      intensity: intensity,
-      state: currentState,
-    }),
-    success: function (response) {
-      if (response.success) {
-        currentState = response.state;
-        updateVisualization();
-      } else {
-        console.error("Error modifying cell:", response.error);
+  // Select data based on current view
+  let plotData = [];
+
+  if (currentView === "voltage" && currentState.voltage_potential) {
+    plotData = [
+      {
+        z: currentState.voltage_potential,
+        type: "heatmap",
+        colorscale: "Viridis",
+        colorbar: {
+          title: "Voltage (mV)",
+          titlefont: { color: "#fff" },
+          tickfont: { color: "#fff" },
+        },
+      },
+    ];
+  } else if (currentView === "morphology" && currentState.morphological_state) {
+    // Convert 1D morphological state to 2D for visualization
+    const size = Math.sqrt(currentState.morphological_state.length);
+    let morphGrid = [];
+
+    for (let i = 0; i < size; i++) {
+      let row = [];
+      for (let j = 0; j < size; j++) {
+        row.push(currentState.morphological_state[i * size + j]);
       }
-    },
-    error: function (xhr, status, error) {
-      console.error("AJAX error during cell modification:", error);
-    },
-  });
-}
-
-// Export current simulation data
-function exportData() {
-  if (!currentState) {
-    alert("No simulation data to export.");
-    return;
-  }
-
-  const dataStr = JSON.stringify(
-    {
-      state: currentState,
-      iteration: iterationCount,
-      timestamp: new Date().toISOString(),
-      parameters: collectCurrentParameters(),
-    },
-    null,
-    2
-  );
-
-  // Create download link
-  const dataBlob = new Blob([dataStr], { type: "application/json" });
-  const url = URL.createObjectURL(dataBlob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `bioelectric-sim-${new Date()
-    .toISOString()
-    .slice(0, 19)
-    .replace(/:/g, "-")}.json`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-// Collect all current parameter values
-function collectCurrentParameters() {
-  const params = {};
-
-  $(".parameter-control").each(function () {
-    const section = $(this).data("section");
-    const name = $(this).data("name");
-    const value = parseFloat($(this).val());
-
-    if (!params[section]) {
-      params[section] = {};
+      morphGrid.push(row);
     }
 
-    params[section][name] = value;
+    plotData = [
+      {
+        z: morphGrid,
+        type: "heatmap",
+        colorscale: "Cividis",
+        colorbar: {
+          title: "Morphological State",
+          titlefont: { color: "#fff" },
+          tickfont: { color: "#fff" },
+        },
+      },
+    ];
+  } else if (
+    currentState.ion_gradients &&
+    currentState.ion_gradients[currentView]
+  ) {
+    // Ion gradients (sodium, potassium, calcium)
+    let colorscale = "Hot";
+    if (currentView === "potassium") colorscale = "Blues";
+    if (currentView === "calcium") colorscale = "Greens";
+
+    plotData = [
+      {
+        z: currentState.ion_gradients[currentView],
+        type: "heatmap",
+        colorscale: colorscale,
+        colorbar: {
+          title: `${
+            currentView.charAt(0).toUpperCase() + currentView.slice(1)
+          } (mM)`,
+          titlefont: { color: "#fff" },
+          tickfont: { color: "#fff" },
+        },
+      },
+    ];
+  }
+
+  // Update the main visualization
+  Plotly.react("visualization", plotData, {
+    paper_bgcolor: "#222",
+    plot_bgcolor: "#222",
+    font: { color: "#fff" },
+    margin: { t: 10, l: 50, r: 50, b: 10 },
   });
 
-  return params;
+  // Update time series plot
+  if (currentState.voltage_potential) {
+    // Calculate average voltage
+    let totalVoltage = 0;
+    let count = 0;
+
+    for (let i = 0; i < currentState.voltage_potential.length; i++) {
+      for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
+        totalVoltage += currentState.voltage_potential[i][j];
+        count++;
+      }
+    }
+
+    const avgVoltage = totalVoltage / count;
+
+    // Calculate pattern complexity (simplified as standard deviation)
+    let sumSquaredDiff = 0;
+    for (let i = 0; i < currentState.voltage_potential.length; i++) {
+      for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
+        sumSquaredDiff += Math.pow(
+          currentState.voltage_potential[i][j] - avgVoltage,
+          2
+        );
+      }
+    }
+
+    const complexity = Math.sqrt(sumSquaredDiff / count);
+
+    // Update time series
+    Plotly.extendTraces(
+      "time-series",
+      {
+        x: [[iterationCount]],
+        y: [[avgVoltage]],
+      },
+      [0]
+    );
+
+    // Update complexity metrics
+    Plotly.extendTraces(
+      "pattern-metrics",
+      {
+        x: [[iterationCount]],
+        y: [[complexity]],
+      },
+      [0]
+    );
+
+    // Show only the last 50 data points for clarity
+    const maxPoints = 50;
+    if (iterationCount > maxPoints) {
+      Plotly.relayout("time-series", {
+        xaxis: {
+          range: [iterationCount - maxPoints, iterationCount],
+          title: "Iteration",
+          gridcolor: "#444",
+          color: "#fff",
+        },
+      });
+
+      Plotly.relayout("pattern-metrics", {
+        xaxis: {
+          range: [iterationCount - maxPoints, iterationCount],
+          title: "Iteration",
+          gridcolor: "#444",
+          color: "#fff",
+        },
+      });
+    }
+  }
+
+  console.log("Visualization updated");
 }
+
+// Run a single step when the page loads to initialize
+$(document).ready(function () {
+  // Wait a bit for everything to load
+  setTimeout(function () {
+    runStep();
+  }, 1000);
+});
