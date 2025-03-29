@@ -20,7 +20,39 @@ $(document).ready(function () {
 
   // Set up event handlers
   setupEventHandlers();
+
+  // Run initial step to get started
+  setTimeout(function () {
+    runInitialStep();
+  }, 1000);
 });
+
+function runInitialStep() {
+  // Send request to initialize simulation
+  $.ajax({
+    url: "/api/run_step",
+    type: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({
+      config_updates: {},
+      state: null,
+      scenario: "default",
+    }),
+    success: function (response) {
+      console.log("Initial step response:", response);
+      if (response.success) {
+        currentState = response.state;
+        updateVisualization();
+        console.log("Initial visualization complete");
+      } else {
+        console.error("Error in initial step:", response.error);
+      }
+    },
+    error: function (xhr, status, error) {
+      console.error("AJAX error:", status, error);
+    },
+  });
+}
 
 function initPlots() {
   console.log("Initializing plots...");
@@ -205,21 +237,23 @@ function setupEventHandlers() {
     const intensity = parseFloat($("#homeostasis-homeostasis_strength").val());
 
     // Modify cell
-    $.post(
-      "/api/modify_cell",
-      {
-        x: y, // Swap x/y for correct orientation in heatmap
-        y: x,
+    $.ajax({
+      url: "/api/modify_cell",
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        x: x,
+        y: y,
         ion: currentView === "voltage" ? "voltage" : currentView,
         intensity: intensity,
-      },
-      function (response) {
+      }),
+      success: function (response) {
         if (response.success) {
           currentState = response.state;
           updateVisualization();
         }
-      }
-    );
+      },
+    });
   });
 }
 
@@ -257,18 +291,28 @@ function resetSimulation() {
   const scenario = $("#scenario-select").val();
 
   // Initialize simulation with selected scenario
-  $.post(
-    "/api/init_simulation",
-    {
+  $.ajax({
+    url: "/api/run_step",
+    type: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({
+      config_updates: {},
+      state: null,
       scenario: scenario,
-    },
-    function (response) {
+    }),
+    success: function (response) {
+      console.log("Reset response:", response);
       if (response.success) {
         currentState = response.state;
         updateVisualization();
+      } else {
+        console.error("Error resetting simulation:", response.error);
       }
-    }
-  );
+    },
+    error: function (xhr, status, error) {
+      console.error("AJAX error during reset:", status, error);
+    },
+  });
 }
 
 function runStep() {
@@ -290,14 +334,16 @@ function runStep() {
   const scenario = $("#scenario-select").val();
 
   // Send request to run a step
-  $.post(
-    "/api/run_step",
-    {
+  $.ajax({
+    url: "/api/run_step",
+    type: "POST",
+    contentType: "application/json",
+    data: JSON.stringify({
       config_updates: configUpdates,
       state: currentState,
       scenario: scenario,
-    },
-    function (response) {
+    }),
+    success: function (response) {
       if (response.success) {
         // Update state
         currentState = response.state;
@@ -308,9 +354,16 @@ function runStep() {
 
         // Update visualization
         updateVisualization();
+      } else {
+        console.error("Error running step:", response.error || "Unknown error");
+        pauseSimulation();
       }
-    }
-  );
+    },
+    error: function (xhr, status, error) {
+      console.error("AJAX error during step:", status, error);
+      pauseSimulation();
+    },
+  });
 }
 
 function updateVisualization() {
