@@ -4,16 +4,29 @@ let currentView = "voltage";
 let iterationCount = 0;
 let simulationRunning = false;
 let simulationInterval = null;
+let isInitializing = false;
+
+// Add this function at the beginning of your simulation.js file
+function debugData(data, label) {
+  console.log("-----DEBUG " + label + "-----");
+  console.log(data);
+  if (data && data.voltage_potential) {
+    console.log(
+      "Voltage range: " +
+        Math.min(...data.voltage_potential.flat()) +
+        " to " +
+        Math.max(...data.voltage_potential.flat())
+    );
+  }
+  console.log("-----------------------");
+}
 
 // Initialize application when DOM is ready
 $(document).ready(function () {
   console.log("Initializing application");
 
-  // Initialize plots
+  // Initialize plots with empty data
   initPlots();
-
-  // Load scenarios
-  loadScenarios();
 
   // Load parameters
   loadParameters();
@@ -21,60 +34,33 @@ $(document).ready(function () {
   // Set up event handlers
   setupEventHandlers();
 
-  // Run initial step to get started
+  // Run initial step after a short delay
   setTimeout(function () {
-    runInitialStep();
-  }, 1000);
+    initializeSimulation();
+  }, 500);
 });
-
-function runInitialStep() {
-  // Send request to initialize simulation
-  $.ajax({
-    url: "/api/run_step",
-    type: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({
-      config_updates: {},
-      state: null,
-      scenario: "default",
-    }),
-    success: function (response) {
-      console.log("Initial step response:", response);
-      if (response.success) {
-        currentState = response.state;
-        updateVisualization();
-        console.log("Initial visualization complete");
-      } else {
-        console.error("Error in initial step:", response.error);
-      }
-    },
-    error: function (xhr, status, error) {
-      console.error("AJAX error:", status, error);
-    },
-  });
-}
 
 function initPlots() {
   console.log("Initializing plots...");
 
   try {
-    // Initialize main visualization with dummy data
-    const dummyData = Array(10)
-      .fill()
-      .map(() => Array(10).fill(0));
+    // Create empty grid data
+    const emptyGrid = [
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+      [0, 0, 1, 0, 0],
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+    ];
 
+    // Main visualization - extremely simple to start
     Plotly.newPlot(
       "visualization",
       [
         {
-          z: dummyData,
+          z: emptyGrid,
           type: "heatmap",
           colorscale: "Viridis",
-          colorbar: {
-            title: "Voltage (mV)",
-            titlefont: { color: "#fff" },
-            tickfont: { color: "#fff" },
-          },
         },
       ],
       {
@@ -82,123 +68,151 @@ function initPlots() {
         plot_bgcolor: "#222",
         font: { color: "#fff" },
         margin: { t: 10, l: 50, r: 50, b: 10 },
-        height: 300, // Explicitly set height
+        height: 350,
       }
     );
 
-    // Initialize time series plot
+    // Time series plot - start with simple data
     Plotly.newPlot(
       "time-series",
       [
         {
-          x: [],
-          y: [],
+          x: [0],
+          y: [0.5],
           type: "scatter",
           mode: "lines",
-          line: { color: "#00ff00", width: 2 },
-          name: "Average Voltage",
+          line: { color: "#00ff00" },
         },
       ],
       {
         paper_bgcolor: "#222",
         plot_bgcolor: "#222",
         font: { color: "#fff" },
-        margin: { t: 10, l: 50, r: 20, b: 40 },
         xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
-        yaxis: { title: "Voltage", gridcolor: "#444", color: "#fff" },
-        height: 300, // Explicitly set height
+        yaxis: { title: "Average Voltage", gridcolor: "#444", color: "#fff" },
+        margin: { t: 10, l: 50, r: 20, b: 40 },
+        height: 300,
       }
     );
 
-    // Initialize pattern metrics plot
+    // Pattern complexity plot - start with simple data
     Plotly.newPlot(
       "pattern-metrics",
       [
         {
-          x: [],
-          y: [],
+          x: [0],
+          y: [0.2],
           type: "scatter",
           mode: "lines",
-          line: { color: "#00ffff", width: 2 },
-          name: "Complexity",
+          line: { color: "#00ffff" },
         },
       ],
       {
         paper_bgcolor: "#222",
         plot_bgcolor: "#222",
         font: { color: "#fff" },
-        margin: { t: 10, l: 50, r: 20, b: 40 },
         xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
         yaxis: { title: "Complexity", gridcolor: "#444", color: "#fff" },
-        height: 300, // Explicitly set height
+        margin: { t: 10, l: 50, r: 20, b: 40 },
+        height: 300,
       }
     );
 
-    console.log("Plots initialized successfully");
+    console.log("Plots initialized");
   } catch (error) {
     console.error("Error initializing plots:", error);
   }
 }
 
-function loadScenarios() {
-  $.get("/api/scenarios", function (data) {
-    const select = $("#scenario-select");
-    select.empty();
-
-    data.forEach((scenario) => {
-      select.append(`<option value="${scenario.id}">${scenario.name}</option>`);
-    });
-
-    console.log("Scenarios loaded:", data.length);
+function loadParameters() {
+  // Get parameters from server
+  $.ajax({
+    url: "/api/parameters",
+    type: "GET",
+    dataType: "json",
+    success: function (data) {
+      console.log("Parameters loaded:", data.length);
+      populateParameters(data);
+    },
+    error: function (error) {
+      console.error("Error loading parameters:", error);
+      // Fallback to basic parameters if API fails
+      const defaultParams = [
+        {
+          section: "core",
+          name: "field_dimension",
+          label: "Grid Size",
+          min: 5,
+          max: 20,
+          step: 1,
+          default: 10,
+        },
+        {
+          section: "core",
+          name: "gap_junction_strength",
+          label: "Gap Junction Strength",
+          min: 0,
+          max: 1,
+          step: 0.05,
+          default: 0.5,
+        },
+        {
+          section: "homeostasis",
+          name: "homeostasis_strength",
+          label: "Homeostasis",
+          min: 0,
+          max: 1,
+          step: 0.05,
+          default: 0.7,
+        },
+      ];
+      populateParameters(defaultParams);
+    },
   });
 }
 
-function loadParameters() {
-  $.get("/api/parameters", function (data) {
-    const container = $("#parameter-controls");
-    container.empty();
+function populateParameters(parameters) {
+  const container = $("#parameter-controls");
+  container.empty();
 
-    data.forEach((param) => {
-      container.append(`
-                <div class="mb-3">
-                    <label for="${param.section}-${param.name}" class="form-label">${param.label}</label>
-                    <input type="range" class="form-range parameter-slider" 
-                           id="${param.section}-${param.name}" 
-                           data-section="${param.section}"
-                           data-name="${param.name}"
-                           min="${param.min}" max="${param.max}" step="${param.step}" 
-                           value="${param.default}">
-                    <div class="d-flex justify-content-between">
-                        <small>${param.min}</small>
-                        <small class="parameter-value">${param.default}</small>
-                        <small>${param.max}</small>
-                    </div>
+  parameters.forEach((param) => {
+    container.append(`
+            <div class="mb-3">
+                <label for="${param.section}-${param.name}" class="form-label">${param.label}</label>
+                <input type="range" class="form-range parameter-slider" 
+                       id="${param.section}-${param.name}" 
+                       data-section="${param.section}"
+                       data-name="${param.name}"
+                       min="${param.min}" max="${param.max}" step="${param.step}" 
+                       value="${param.default}">
+                <div class="d-flex justify-content-between">
+                    <small>${param.min}</small>
+                    <small class="parameter-value">${param.default}</small>
+                    <small>${param.max}</small>
                 </div>
-            `);
-    });
+            </div>
+        `);
+  });
 
-    // Update value display when slider changes
-    $(".parameter-slider").on("input", function () {
-      $(this).siblings("div").find(".parameter-value").text($(this).val());
-    });
-
-    console.log("Parameters loaded:", data.length);
+  // Update value display when slider changes
+  $(".parameter-slider").on("input", function () {
+    $(this).siblings("div").find(".parameter-value").text($(this).val());
   });
 }
 
 function setupEventHandlers() {
-  // Start button
-  $("#start-btn").click(function () {
-    if (!simulationRunning) {
-      startSimulation();
+  // Run/pause button
+  $("#run-btn").click(function () {
+    if (simulationRunning) {
+      stopSimulation();
     } else {
-      pauseSimulation();
+      startSimulation();
     }
   });
 
   // Step button
   $("#step-btn").click(function () {
-    runStep();
+    singleStep();
   });
 
   // Reset button
@@ -206,7 +220,7 @@ function setupEventHandlers() {
     resetSimulation();
   });
 
-  // View selector
+  // View selector buttons
   $('.btn-group[role="group"] .btn').click(function () {
     $('.btn-group[role="group"] .btn').removeClass("active");
     $(this).addClass("active");
@@ -217,106 +231,137 @@ function setupEventHandlers() {
     }
   });
 
-  // Click on visualization to modify cell
-  $("#visualization").on("click", function (e) {
-    if (!currentState) return;
+  // Scenario selector
+  $("#scenario-select").change(function () {
+    if (!simulationRunning) {
+      resetSimulation();
+    }
+  });
 
-    const rect = e.target.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left;
-    const offsetY = e.clientY - rect.top;
+  // Add debug button handler
+  $("#debug-btn").click(function () {
+    const debugInfo = $("#debug-info");
 
-    // Convert click coordinates to cell grid coordinates
-    const width = $(this).width();
-    const height = $(this).height();
-    const gridSize = currentState.voltage_potential.length;
+    if (debugInfo.css("display") === "none") {
+      debugInfo.css("display", "block");
 
-    const x = Math.floor((offsetX / width) * gridSize);
-    const y = Math.floor((offsetY / height) * gridSize);
-
-    // Get sliders values
-    const intensity = parseFloat($("#homeostasis-homeostasis_strength").val());
-
-    // Modify cell
-    $.ajax({
-      url: "/api/modify_cell",
-      type: "POST",
-      contentType: "application/json",
-      data: JSON.stringify({
-        x: x,
-        y: y,
-        ion: currentView === "voltage" ? "voltage" : currentView,
-        intensity: intensity,
-      }),
-      success: function (response) {
-        if (response.success) {
-          currentState = response.state;
-          updateVisualization();
-        }
-      },
-    });
+      // Show current state info
+      showDebugInfo({
+        currentView,
+        iterationCount,
+        stateAvailable: currentState !== null,
+        voltage: currentState
+          ? {
+              shape: [
+                currentState.voltage_potential.length,
+                currentState.voltage_potential[0].length,
+              ],
+              min: Math.min(...currentState.voltage_potential.flat()),
+              max: Math.max(...currentState.voltage_potential.flat()),
+            }
+          : null,
+        ions: currentState ? Object.keys(currentState.ion_gradients) : null,
+      });
+    } else {
+      debugInfo.css("display", "none");
+    }
   });
 }
 
-function startSimulation() {
-  simulationRunning = true;
-  $("#start-btn")
-    .text("Pause")
-    .removeClass("btn-outline-primary")
-    .addClass("btn-outline-warning");
+function initializeSimulation() {
+  console.log("Initializing simulation...");
+  if (isInitializing) return;
 
-  // Run simulation at approximately 10 FPS
-  simulationInterval = setInterval(function () {
-    runStep();
-  }, 100);
-}
+  isInitializing = true;
 
-function pauseSimulation() {
-  simulationRunning = false;
-  $("#start-btn")
-    .text("Start")
-    .removeClass("btn-outline-warning")
-    .addClass("btn-outline-primary");
-
-  if (simulationInterval) {
-    clearInterval(simulationInterval);
-  }
-}
-
-function resetSimulation() {
-  pauseSimulation();
-  iterationCount = 0;
-  $("#iteration-counter").text("Iteration: 0");
-
-  // Get selected scenario
-  const scenario = $("#scenario-select").val();
-
-  // Initialize simulation with selected scenario
+  // Ensure we create a good initial state with some pattern
   $.ajax({
     url: "/api/run_step",
     type: "POST",
     contentType: "application/json",
     data: JSON.stringify({
-      config_updates: {},
-      state: null,
-      scenario: scenario,
+      config_updates: {
+        // Make sure we get a good initial pattern
+        core: {
+          field_dimension: 10,
+          gap_junction_strength: 0.5,
+        },
+      },
+      state: null, // Start fresh
+      scenario: $("#scenario-select").val() || "default",
     }),
     success: function (response) {
-      console.log("Reset response:", response);
+      isInitializing = false;
       if (response.success) {
         currentState = response.state;
+        debugData(currentState, "Initial State");
         updateVisualization();
+        console.log("Initial state created");
       } else {
-        console.error("Error resetting simulation:", response.error);
+        console.error("Error initializing:", response.error || "Unknown error");
       }
     },
     error: function (xhr, status, error) {
-      console.error("AJAX error during reset:", status, error);
+      isInitializing = false;
+      console.error("AJAX error during initialization:", error);
+      console.log("Response:", xhr.responseText);
     },
   });
 }
 
-function runStep() {
-  // Get current parameter values
+function startSimulation() {
+  simulationRunning = true;
+  $("#run-btn")
+    .text("Pause")
+    .removeClass("btn-outline-primary")
+    .addClass("btn-outline-danger");
+
+  // Run simulation loop at approximately 5 FPS
+  simulationInterval = setInterval(singleStep, 200);
+}
+
+function stopSimulation() {
+  simulationRunning = false;
+  $("#run-btn")
+    .text("Run")
+    .removeClass("btn-outline-danger")
+    .addClass("btn-outline-primary");
+
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+    simulationInterval = null;
+  }
+}
+
+function resetSimulation() {
+  // First stop if running
+  stopSimulation();
+
+  // Reset iteration counter
+  iterationCount = 0;
+  $("#iteration-value").text("0");
+
+  // Clear plots
+  Plotly.animate("time-series", {
+    data: [{ x: [0], y: [0] }],
+  });
+
+  Plotly.animate("pattern-metrics", {
+    data: [{ x: [0], y: [0] }],
+  });
+
+  // Initialize with new scenario
+  initializeSimulation();
+}
+
+function singleStep() {
+  if (!currentState) {
+    console.log("No current state, initializing first");
+    initializeSimulation();
+    return;
+  }
+
+  // Get parameter values from sliders
   let configUpdates = {};
   $(".parameter-slider").each(function () {
     const section = $(this).data("section");
@@ -330,10 +375,9 @@ function runStep() {
     configUpdates[section][name] = value;
   });
 
-  // Get selected scenario
-  const scenario = $("#scenario-select").val();
+  console.log("Running step with config:", configUpdates);
 
-  // Send request to run a step
+  // Run simulation step
   $.ajax({
     url: "/api/run_step",
     type: "POST",
@@ -341,63 +385,127 @@ function runStep() {
     data: JSON.stringify({
       config_updates: configUpdates,
       state: currentState,
-      scenario: scenario,
+      scenario: $("#scenario-select").val(),
     }),
     success: function (response) {
       if (response.success) {
-        // Update state
+        console.log("Step response successful");
         currentState = response.state;
-
-        // Update iteration count
         iterationCount++;
-        $("#iteration-counter").text("Iteration: " + iterationCount);
-
-        // Update visualization
+        $("#iteration-value").text(iterationCount);
         updateVisualization();
       } else {
-        console.error("Error running step:", response.error || "Unknown error");
-        pauseSimulation();
+        console.error("Error during step:", response.error || "Unknown error");
+        stopSimulation();
       }
     },
     error: function (xhr, status, error) {
-      console.error("AJAX error during step:", status, error);
-      pauseSimulation();
+      console.error("AJAX error during step:", error);
+      console.log("Response:", xhr.responseText);
+      stopSimulation();
     },
   });
 }
 
+// Replace your updateVisualization function with this version
 function updateVisualization() {
-  console.log("Updating visualization with state:", currentState);
+  console.log("Updating visualization");
 
   if (!currentState) {
     console.error("No current state available");
     return;
   }
 
-  // Add debug information to help troubleshoot
-  console.log("Current view:", currentView);
-  console.log(
-    "Voltage potential shape:",
-    currentState.voltage_potential
-      ? [
-          currentState.voltage_potential.length,
-          currentState.voltage_potential[0].length,
-        ]
-      : "undefined"
-  );
-
-  // Select data based on current view
-  let plotData = [];
+  debugData(currentState, "Current State");
 
   try {
+    // Choose data based on current view
+    let plotData = [];
+    let colorScale = "Viridis";
+    let title = "Voltage (mV)";
+
     if (currentView === "voltage" && currentState.voltage_potential) {
+      // Check if data has proper structure
+      if (
+        !Array.isArray(currentState.voltage_potential) ||
+        !Array.isArray(currentState.voltage_potential[0])
+      ) {
+        console.error("Voltage data is not a proper 2D array");
+        debugData(currentState.voltage_potential, "Invalid voltage data");
+        return;
+      }
+
+      // Log the actual values
+      console.log(
+        "Voltage data dimensions:",
+        currentState.voltage_potential.length,
+        currentState.voltage_potential[0].length
+      );
+      console.log(
+        "Sample values:",
+        currentState.voltage_potential[0][0],
+        currentState.voltage_potential[0][1],
+        currentState.voltage_potential[1][0]
+      );
+
       plotData = [
         {
           z: currentState.voltage_potential,
           type: "heatmap",
-          colorscale: "Viridis",
+          colorscale: colorScale,
           colorbar: {
-            title: "Voltage (mV)",
+            title: title,
+            titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
+          },
+        },
+      ];
+    } else if (
+      currentView === "sodium" &&
+      currentState.ion_gradients &&
+      currentState.ion_gradients.sodium
+    ) {
+      plotData = [
+        {
+          z: currentState.ion_gradients.sodium,
+          type: "heatmap",
+          colorscale: "Hot",
+          colorbar: {
+            title: "Sodium (mM)",
+            titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
+          },
+        },
+      ];
+    } else if (
+      currentView === "potassium" &&
+      currentState.ion_gradients &&
+      currentState.ion_gradients.potassium
+    ) {
+      plotData = [
+        {
+          z: currentState.ion_gradients.potassium,
+          type: "heatmap",
+          colorscale: "Blues",
+          colorbar: {
+            title: "Potassium (mM)",
+            titlefont: { color: "#fff" },
+            tickfont: { color: "#fff" },
+          },
+        },
+      ];
+    } else if (
+      currentView === "calcium" &&
+      currentState.ion_gradients &&
+      currentState.ion_gradients.calcium
+    ) {
+      plotData = [
+        {
+          z: currentState.ion_gradients.calcium,
+          type: "heatmap",
+          colorscale: "Greens",
+          colorbar: {
+            title: "Calcium (mM)",
             titlefont: { color: "#fff" },
             tickfont: { color: "#fff" },
           },
@@ -407,93 +515,90 @@ function updateVisualization() {
       currentView === "morphology" &&
       currentState.morphological_state
     ) {
-      // Convert 1D morphological state to 2D for visualization
-      const morphState = currentState.morphological_state;
-      const size = Math.floor(Math.sqrt(morphState.length));
-      let morphGrid = [];
-
-      for (let i = 0; i < size; i++) {
-        let row = [];
-        for (let j = 0; j < size; j++) {
-          const idx = i * size + j;
-          row.push(idx < morphState.length ? morphState[idx] : 0);
+      // Convert 1D array to 2D for visualization if needed
+      if (Array.isArray(currentState.morphological_state[0])) {
+        // Already 2D
+        morphData = currentState.morphological_state;
+      } else {
+        // Convert 1D to 2D
+        const size = Math.sqrt(currentState.morphological_state.length);
+        morphData = [];
+        for (let i = 0; i < size; i++) {
+          let row = [];
+          for (let j = 0; j < size; j++) {
+            const idx = i * size + j;
+            row.push(
+              idx < currentState.morphological_state.length
+                ? currentState.morphological_state[idx]
+                : 0
+            );
+          }
+          morphData.push(row);
         }
-        morphGrid.push(row);
       }
 
       plotData = [
         {
-          z: morphGrid,
+          z: morphData,
           type: "heatmap",
-          colorscale: "Cividis",
+          colorscale: "Portland",
           colorbar: {
-            title: "Morphological State",
+            title: "Morphology",
             titlefont: { color: "#fff" },
             tickfont: { color: "#fff" },
           },
         },
       ];
-    } else if (
-      currentState.ion_gradients &&
-      currentState.ion_gradients[currentView]
-    ) {
-      // Ion gradients (sodium, potassium, calcium)
-      let colorscale = "Hot";
-      if (currentView === "potassium") colorscale = "Blues";
-      if (currentView === "calcium") colorscale = "Greens";
-
-      plotData = [
-        {
-          z: currentState.ion_gradients[currentView],
-          type: "heatmap",
-          colorscale: colorscale,
-          colorbar: {
-            title: `${
-              currentView.charAt(0).toUpperCase() + currentView.slice(1)
-            } (mM)`,
-            titlefont: { color: "#fff" },
-            tickfont: { color: "#fff" },
-          },
-        },
-      ];
+    } else {
+      console.error("No valid data for current view:", currentView);
+      return;
     }
 
-    // Update the main visualization with updated layout
-    Plotly.react("visualization", plotData, {
+    console.log(
+      "About to update plots with data:",
+      plotData.length > 0 ? "valid data" : "no data"
+    );
+
+    // Update main visualization with specific layout
+    const layout = {
       paper_bgcolor: "#222",
       plot_bgcolor: "#222",
       font: { color: "#fff" },
       margin: { t: 10, l: 50, r: 50, b: 10 },
-      height: 300, // Explicitly set height
-    });
+      height: 350,
+    };
 
-    // Update time series plot if we have state data
+    // Force redraw
+    Plotly.purge("visualization");
+    Plotly.newPlot("visualization", plotData, layout);
+
+    // Update time series if we have voltage data
     if (currentState.voltage_potential) {
       // Calculate average voltage
-      let totalVoltage = 0;
+      let sum = 0;
       let count = 0;
 
       for (let i = 0; i < currentState.voltage_potential.length; i++) {
         for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
-          totalVoltage += currentState.voltage_potential[i][j];
+          sum += currentState.voltage_potential[i][j];
           count++;
         }
       }
 
-      const avgVoltage = totalVoltage / count;
+      const avgVoltage = sum / count;
 
-      // Calculate a simple "complexity" metric - standard deviation of voltage
-      let sumSquaredDiff = 0;
+      // Calculate complexity (using std dev as a simple metric)
+      let sumSqDiff = 0;
       for (let i = 0; i < currentState.voltage_potential.length; i++) {
         for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
-          sumSquaredDiff += Math.pow(
+          sumSqDiff += Math.pow(
             currentState.voltage_potential[i][j] - avgVoltage,
             2
           );
         }
       }
 
-      const complexity = Math.sqrt(sumSquaredDiff / count);
+      const complexity = Math.sqrt(sumSqDiff / count);
 
       // Update time series
       Plotly.extendTraces(
@@ -505,7 +610,7 @@ function updateVisualization() {
         [0]
       );
 
-      // Update metrics
+      // Update complexity metrics
       Plotly.extendTraces(
         "pattern-metrics",
         {
@@ -515,25 +620,8 @@ function updateVisualization() {
         [0]
       );
 
-      // Keep a limited window of data points
-      const maxPoints = 100;
-      if (iterationCount > maxPoints) {
-        Plotly.relayout("time-series", {
-          xaxis: {
-            range: [iterationCount - maxPoints, iterationCount],
-            color: "#fff",
-            gridcolor: "#444",
-          },
-        });
-
-        Plotly.relayout("pattern-metrics", {
-          xaxis: {
-            range: [iterationCount - maxPoints, iterationCount],
-            color: "#fff",
-            gridcolor: "#444",
-          },
-        });
-      }
+      console.log("Updated time series with avg voltage:", avgVoltage);
+      console.log("Updated complexity metrics with value:", complexity);
     }
 
     console.log("Visualization updated successfully");
@@ -541,11 +629,3 @@ function updateVisualization() {
     console.error("Error updating visualization:", error);
   }
 }
-
-// Run a single step when the page loads to initialize
-$(document).ready(function () {
-  // Wait a bit for everything to load
-  setTimeout(function () {
-    runStep();
-  }, 1000);
-});

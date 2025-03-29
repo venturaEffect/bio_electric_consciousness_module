@@ -21,10 +21,16 @@ from bcm.morphology.pattern_formation import BioelectricPatternFormation
 from bcm.goals.homeostasis import HomeostasisRegulator
 import bcm.utils.visualization as viz
 
+# Add this to your imports if not already there
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from bcm.models.simple_model import SimpleBioelectricModel
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname%s - %(message)s'
 )
 logger = logging.getLogger('bcm_web')
 
@@ -144,7 +150,9 @@ except Exception as e:
     logger.warning(f"Error loading config from file: {str(e)}. Using defaults.")
 
 # Global model instances and device
-models = {}
+models = {
+    'core': SimpleBioelectricModel()
+}
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Using device: {device}")
 
@@ -488,152 +496,171 @@ def init_simulation():
 
 @app.route('/api/run_step', methods=['POST'])
 def run_step():
-    """Run a single simulation step with provided parameters."""
+    """Run a single simulation step."""
     try:
         logger.info("Received run_step request")
         
-        # Check if request has valid JSON
-        if not request.is_json:
-            logger.warning("Request content type is not application/json")
-            # Handle form data or empty requests by creating a default response
-            data = {}
-            state_data = None
-            config_updates = {}
-            scenario = "default"
+        # Handle JSON data - check for proper content type
+        if request.content_type == 'application/json':
+            try:
+                data = request.get_json()
+                if data is None:
+                    # Fall back to form data if JSON parsing fails
+                    data = {}
+            except Exception as e:
+                logger.warning(f"Error parsing JSON: {e}")
+                data = {}
         else:
-            data = request.get_json()
-            config_updates = data.get('config_updates', {})
-            state_data = data.get('state', None)
-            scenario = data.get('scenario', 'default')
+            # If not JSON, try to get form data
+            data = {}
+        
+        # Extract parameters with defaults
+        config_updates = data.get('config_updates', {})
+        state_data = data.get('state', None)
+        scenario = data.get('scenario', 'default')
         
         logger.info(f"Processing scenario: {scenario}, with state: {state_data is not None}")
         
-        # Update config with provided parameters
-        updated_config = update_config(default_config, config_updates)
-        
-        # Re-initialize models if config changed significantly
+        # Apply config updates if any
+        global default_config
         if config_updates:
-            init_models(updated_config)
+            for section, params in config_updates.items():
+                if section not in default_config:
+                    default_config[section] = {}
+                for param, value in params.items():
+                    default_config[section][param] = value
+            
+        # Get field dimension from config
+        field_dim = default_config.get('core', {}).get('field_dimension', 10)
         
-        # Create initial state if not provided
-        if not state_data:
-            # Create default initial state
-            grid_size = updated_config.get('core', {}).get('field_dimension', 10)
+        # Create initial state or process existing state
+        if state_data is None:
+            # Create a basic pattern - use a Gaussian bump by default
+            voltage_potential = torch.zeros((field_dim, field_dim), device=device)
+            center_x, center_y = field_dim // 2, field_dim // 2
             
-            # Initialize with small random values
-            voltage_potential = torch.randn(grid_size, grid_size, device=device) * 0.01
-            
-            # Add a specific pattern for demonstration
+            # Generate pattern based on scenario
             if scenario == 'two_head_planarian':
-                # Add two high-voltage regions suggesting two head formation sites
-                voltage_potential[1:3, 1:3] = 0.8  # Top head voltage pattern
-                voltage_potential[7:9, 7:9] = 0.8  # Bottom head voltage pattern
+                # Two high voltage regions
+                for i in range(field_dim):
+                    for j in range(field_dim):
+                        dist1 = np.sqrt((i - field_dim//4)**2 + (j - field_dim//2)**2)
+                        dist2 = np.sqrt((i - 3*field_dim//4)**2 + (j - field_dim//2)**2)
+                        voltage_potential[i, j] = 0.8 * (np.exp(-(dist1**2)/8) + np.exp(-(dist2**2)/8))
             elif scenario == 'eye_induction':
-                # Create eye-like pattern
-                center_x, center_y = grid_size // 3, grid_size // 3
-                for i in range(grid_size):
-                    for j in range(grid_size):
-                        dist = torch.sqrt(torch.tensor((i-center_x)**2 + (j-center_y)**2))
-                        if dist < grid_size / 5:
-                            voltage_potential[i, j] = 0.9
-                
-                center_x, center_y = 2*grid_size // 3, grid_size // 3
-                for i in range(grid_size):
-                    for j in range(grid_size):
-                        dist = torch.sqrt(torch.tensor((i-center_x)**2 + (j-center_y)**2))
-                        if dist < grid_size / 5:
-                            voltage_potential[i, j] = 0.9
-            elif scenario == 'organ_reprogramming':
-                # Create a gradient pattern
-                for i in range(grid_size):
-                    for j in range(grid_size):
-                        voltage_potential[i, j] = 0.8 * (1 - i / grid_size)
-            else:  # default scenario
-                # Create a simple central pattern
-                center = grid_size // 2
-                for i in range(grid_size):
-                    for j in range(grid_size):
-                        dist = torch.sqrt(torch.tensor((i-center)**2 + (j-center)**2))
-                        voltage_potential[i, j] = 0.8 * torch.exp(-dist / (grid_size/4))
+                # Pattern for eye induction
+                for i in range(field_dim):
+                    for j in range(field_dim):
+                        dist_center = np.sqrt((i - field_dim//2)**2 + (j - field_dim//2)**2)
+                        dist_eye1 = np.sqrt((i - field_dim//2)**2 + (j - field_dim//3)**2)
+                        dist_eye2 = np.sqrt((i - field_dim//2)**2 + (j - 2*field_dim//3)**2)
+                        voltage_potential[i, j] = (
+                            0.7 * np.exp(-(dist_center**2)/16) + 
+                            0.9 * np.exp(-(dist_eye1**2)/4) + 
+                            0.9 * np.exp(-(dist_eye2**2)/4)
+                        )
+            else:  # default or 'default'
+                # Simple Gaussian bump
+                for i in range(field_dim):
+                    for j in range(field_dim):
+                        # Distance from center
+                        dist = np.sqrt((i - center_x)**2 + (j - center_y)**2)
+                        # Gaussian formula: h*exp(-dist²/σ²)
+                        voltage_potential[i, j] = 0.9 * np.exp(-(dist**2)/(field_dim/3)**2)
             
             # Initialize ion gradients
             ion_gradients = {
-                'sodium': torch.ones_like(voltage_potential) * 0.3 + torch.randn_like(voltage_potential) * 0.05,
-                'potassium': torch.ones_like(voltage_potential) * 0.5 + torch.randn_like(voltage_potential) * 0.05,
-                'calcium': torch.ones_like(voltage_potential) * 0.2 + torch.randn_like(voltage_potential) * 0.05,
+                'sodium': torch.ones((field_dim, field_dim), device=device) * 0.4,
+                'potassium': torch.ones((field_dim, field_dim), device=device) * 0.5,
+                'calcium': torch.ones((field_dim, field_dim), device=device) * 0.2
             }
             
-            # Initialize morphological state as zeros
-            morphological_state = torch.zeros(grid_size * grid_size, device=device)
+            # Initialize morphological state
+            morphological_state = torch.zeros(field_dim * field_dim, device=device)
             
-            logger.info(f"Created initial state with dimensions: {grid_size}x{grid_size}")
+            logger.info(f"Created initial state with dimensions: {field_dim}x{field_dim}")
         else:
-            # Convert state back to tensors for processing
+            # Convert existing state data to tensors
             try:
                 voltage_potential = torch.tensor(state_data['voltage_potential'], device=device)
+                
                 ion_gradients = {
-                    ion: torch.tensor(grad, device=device) 
+                    ion: torch.tensor(grad, device=device)
                     for ion, grad in state_data['ion_gradients'].items()
                 }
+                
                 morphological_state = torch.tensor(state_data['morphological_state'], device=device)
+                
+                logger.info(f"Processed existing state, shape: {voltage_potential.shape}")
             except Exception as e:
-                logger.error(f"Error converting state data to tensors: {str(e)}")
-                # If conversion fails, create a new state
-                return run_step()  # Recursive call with no state
+                logger.error(f"Error processing state data: {e}")
+                # Fallback
+                voltage_potential = torch.zeros((field_dim, field_dim), device=device)
+                # Create a simple pattern
+                center_x, center_y = field_dim // 2, field_dim // 2
+                for i in range(field_dim):
+                    for j in range(field_dim):
+                        dist = np.sqrt((i - center_x)**2 + (j - center_y)**2)
+                        voltage_potential[i, j] = 0.9 * np.exp(-(dist**2)/(field_dim/3)**2)
+                
+                ion_gradients = {
+                    'sodium': torch.ones((field_dim, field_dim), device=device) * 0.4,
+                    'potassium': torch.ones((field_dim, field_dim), device=device) * 0.5,
+                    'calcium': torch.ones((field_dim, field_dim), device=device) * 0.2
+                }
+                morphological_state = torch.zeros(field_dim * field_dim, device=device)
         
-        # Process state through models
-        try:
-            # Create BioelectricState object
-            state = BioelectricState(
-                voltage_potential=voltage_potential,
-                ion_gradients=ion_gradients,
-                gap_junction_states=torch.ones_like(voltage_potential),
-                morphological_state=morphological_state
-            )
-            
-            # Process through models
-            if 'core' in models:
-                state = models['core'](state)
-            if 'pattern_model' in models:
-                state = models['pattern_model'](state)
-            if 'colony' in models:
-                state = models['colony'](state)
-            if 'homeostasis' in models:
-                state = models['homeostasis'](state)
-            
-            # Convert back to Python native types for JSON serialization
-            result_state = {
-                'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
-                'ion_gradients': {
-                    ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
-                },
-                'morphological_state': state.morphological_state.cpu().numpy().tolist()
-            }
-            
-            logger.info(f"Processed state, voltage shape: {len(result_state['voltage_potential'])}x{len(result_state['voltage_potential'][0])}")
-            
-            return jsonify({
-                'success': True,
-                'state': result_state
-            })
-            
-        except Exception as e:
-            logger.error(f"Error in model processing: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return jsonify({
-                'success': False,
-                'error': str(e)
-            })
-            
+        # Create state object
+        state = BioelectricState(
+            voltage_potential=voltage_potential,
+            ion_gradients=ion_gradients,
+            gap_junction_states=torch.ones_like(voltage_potential),
+            morphological_state=morphological_state
+        )
+        
+        # Run state through the models (if they exist)
+        if 'core' in models:
+            state = models['core'](state)
+        if 'pattern_model' in models:
+            state = models['pattern_model'](state)
+        if 'colony' in models:
+            state = models['colony'](state)
+        if 'homeostasis' in models:
+            state = models['homeostasis'](state)
+        
+        # Verify shapes before converting
+        logger.info(f"Final state shapes - voltage: {state.voltage_potential.shape}, "
+                   f"ions: {[ion + ':' + str(grad.shape) for ion, grad in state.ion_gradients.items()]}")
+        
+        # Convert to serializable format
+        # Ensure we have proper 2D arrays for voltage and ions
+        voltage_array = state.voltage_potential.cpu().numpy().tolist()
+        
+        # Convert ion gradients
+        ion_arrays = {}
+        for ion, grad in state.ion_gradients.items():
+            ion_arrays[ion] = grad.cpu().numpy().tolist()
+        
+        # Convert morphological state
+        morph_array = state.morphological_state.cpu().numpy().tolist()
+        
+        result = {
+            'voltage_potential': voltage_array,
+            'ion_gradients': ion_arrays,
+            'morphological_state': morph_array
+        }
+        
+        # Quick validation
+        v_shape = state.voltage_potential.shape
+        logger.info(f"Processed state, voltage shape: {v_shape[0]}x{v_shape[1]}")
+        
+        return jsonify({'success': True, 'state': result})
+    
     except Exception as e:
         logger.error(f"Error in run_step: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        return jsonify({
-            'success': False, 
-            'error': str(e)
-        })
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/scenarios', methods=['GET'])
 def get_scenarios():

@@ -3,6 +3,8 @@ body {
   background-color: #121212;
   color: #e0e0e0;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  padding: 0;
+  margin: 0;
 }
 
 .card {
@@ -224,9 +226,9 @@ header h1 {
 
 .plot-container {
   width: 100%;
-  height: 300px;
+  height: 350px;
   background-color: #1e1e1e;
-  border-radius: 5px;
-  padding: 10px;
+  border: 1px solid #333;
   margin-bottom: 15px;
+  overflow: hidden;
 }
