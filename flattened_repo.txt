@@ -1843,6 +1843,8 @@ import json
 import yaml
 import logging
 from typing import Dict, Any, List, Optional
+import copy
+import datetime
 
 # Add parent directory to path so we can import BCM modules
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1853,37 +1855,421 @@ from bcm.core.bioelectric_core import BioelectricConsciousnessCore, BioelectricS
 from bcm.collective.cell_colony import CellColony
 from bcm.morphology.pattern_formation import BioelectricPatternFormation
 from bcm.goals.homeostasis import HomeostasisRegulator
-from bcm.utils.visualization import (
-    plot_voltage_potentials, 
-    plot_ion_gradients, 
-    plot_morphological_state
-)
+import bcm.utils.visualization as viz
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('bcm_web')
 
 app = Flask(__name__)
 
-# Load default configuration
-config_path = os.path.join(parent_dir, 'configs', 'bioelectric_config.yaml')
-with open(config_path, 'r') as f:
-    default_config = yaml.safe_load(f)
+# Define helper functions first
+def create_default_config():
+    """
+    Create a complete default configuration with all required keys.
+    
+    Returns:
+        dict: Complete configuration with sensible defaults
+    """
+    config = {
+        'core': {
+            'field_dimension': 10,
+            'membrane_capacitance': 0.5,
+            'resting_potential': -0.2,
+            'threshold': 0.3,
+            'sodium_channel': {
+                'conductance': 0.8,
+                'reversal_potential': 1.0,
+                'activation_threshold': 0.2,
+                'inactivation_rate': 0.1,
+                'layers': [64, 32, 1]
+            },
+            'potassium_channel': {
+                'conductance': 0.6,
+                'reversal_potential': -0.8,
+                'activation_threshold': 0.1,
+                'inactivation_rate': 0.05,
+                'layers': [64, 32, 1]
+            },
+            'calcium_channel': {
+                'conductance': 0.4,
+                'reversal_potential': 0.9,
+                'activation_threshold': 0.3,
+                'inactivation_rate': 0.15,
+                'layers': [64, 32, 1]
+            },
+            'gap_junction_strength': 0.5
+        },
+        'pattern_formation': {
+            'field_dimension': 10,
+            'pattern_complexity': 0.7,
+            'reaction_rate': 0.3,
+            'diffusion_rate': 0.1,
+            'boundary_condition': 'circular',
+            # Add the missing morphology section
+            'morphology': {
+                'stability_preference': 0.7,
+                'growth_rate': 0.2,
+                'polarization_threshold': 0.3,
+                'pattern_scale': 1.0
+            }
+        },
+        'colony': {
+            'num_cells': 5,
+            'connection_density': 0.8,
+            'communication_strength': 0.6,
+            'response_threshold': 0.2,
+            'field_dimension': 10
+        },
+        'homeostasis': {
+            'homeostasis_strength': 0.5,
+            'resting_potential': -0.2,
+            'target_ion_levels': {
+                'sodium': 0.1,
+                'potassium': 0.8,
+                'calcium': 0.2
+            },
+            'correction_rate': 0.1,
+            'field_dimension': 10
+        }
+    }
+    return config
+
+def update_config(base_config, updates):
+    """
+    Updates configuration with provided parameter changes.
+    
+    Args:
+        base_config (dict): Base configuration dictionary
+        updates (dict): Updates to apply
+        
+    Returns:
+        dict: Updated configuration
+    """
+    # Make a deep copy to avoid modifying the original
+    config = copy.deepcopy(base_config)
+    
+    # Apply updates
+    for section, params in updates.items():
+        if section not in config:
+            config[section] = {}
+        for name, value in params.items():
+            config[section][name] = value
+    
+    return config
+
+# Now load default configuration
+default_config = create_default_config()
+
+# Try to load from file if available, but fall back to defaults
+try:
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+                             'configs', 'bioelectric_config.yaml')
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            file_config = yaml.safe_load(f)
+            # Merge file config with defaults to ensure all required keys exist
+            default_config = update_config(default_config, file_config)
+        logger.info(f"Loaded configuration from {config_path}")
+    else:
+        logger.warning(f"Config file not found at {config_path}, using defaults")
+except Exception as e:
+    logger.warning(f"Error loading config from file: {str(e)}. Using defaults.")
 
 # Global model instances and device
 models = {}
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Using device: {device}")
 
+# Global state
+current_state = None
+
+# Define the simplified bioelectric core model for web interface
+class SimplifiedBioelectricCore(torch.nn.Module):
+    """
+    A simplified version of the BCM core for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.resting_potential = config.get('resting_potential', -0.2)
+        self.gap_junction_strength = config.get('gap_junction_strength', 0.5)
+        self.field_dimension = config.get('field_dimension', 10)
+        
+    def forward(self, state):
+        """Process a state through simplified bioelectric dynamics."""
+        # Extract components
+        voltage = state.voltage_potential
+        ion_gradients = state.ion_gradients
+        
+        # Simple voltage diffusion through gap junctions
+        voltage_laplacian = self._compute_laplacian(voltage)
+        voltage_diffusion = self.gap_junction_strength * voltage_laplacian
+        
+        # Simple ion channel effects (depolarization/repolarization)
+        sodium_effect = 0.1 * ion_gradients['sodium']
+        potassium_effect = -0.05 * ion_gradients['potassium']
+        calcium_effect = 0.08 * ion_gradients['calcium']
+        
+        # Update voltage
+        voltage_update = voltage_diffusion + sodium_effect + potassium_effect + calcium_effect
+        new_voltage = voltage + 0.1 * voltage_update
+        
+        # Apply non-linearity to keep values in reasonable range
+        new_voltage = torch.tanh(new_voltage)
+        
+        # Simple updates to ion gradients based on voltage
+        new_sodium = ion_gradients['sodium'] * 0.95 + 0.05 * torch.relu(new_voltage)
+        new_potassium = ion_gradients['potassium'] * 0.95 + 0.05 * torch.relu(-new_voltage)
+        new_calcium = ion_gradients['calcium'] * 0.95 + 0.05 * torch.abs(new_voltage)
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=new_voltage,
+            ion_gradients={
+                'sodium': new_sodium,
+                'potassium': new_potassium,
+                'calcium': new_calcium
+            },
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
+        )
+        
+        return new_state
+    
+    def _compute_laplacian(self, tensor):
+        """Compute discrete Laplacian operator (for diffusion)."""
+        # Get dimensions
+        h, w = tensor.shape
+        
+        # Compute discrete Laplacian using convolution-like operations
+        laplacian = torch.zeros_like(tensor)
+        
+        # Internal points
+        for i in range(1, h-1):
+            for j in range(1, w-1):
+                laplacian[i, j] = (
+                    tensor[i+1, j] + tensor[i-1, j] + 
+                    tensor[i, j+1] + tensor[i, j-1] - 
+                    4 * tensor[i, j]
+                )
+                
+        # Handle boundary conditions (no-flux)
+        # Top and bottom edges
+        for j in range(1, w-1):
+            laplacian[0, j] = 2 * tensor[1, j] + tensor[0, j+1] + tensor[0, j-1] - 4 * tensor[0, j]
+            laplacian[h-1, j] = 2 * tensor[h-2, j] + tensor[h-1, j+1] + tensor[h-1, j-1] - 4 * tensor[h-1, j]
+        
+        # Left and right edges
+        for i in range(1, h-1):
+            laplacian[i, 0] = tensor[i+1, 0] + tensor[i-1, 0] + 2 * tensor[i, 1] - 4 * tensor[i, 0]
+            laplacian[i, w-1] = tensor[i+1, w-1] + tensor[i-1, w-1] + 2 * tensor[i, w-2] - 4 * tensor[i, w-1]
+        
+        # Corners
+        laplacian[0, 0] = 2 * tensor[1, 0] + 2 * tensor[0, 1] - 4 * tensor[0, 0]
+        laplacian[0, w-1] = 2 * tensor[1, w-1] + 2 * tensor[0, w-2] - 4 * tensor[0, w-1]
+        laplacian[h-1, 0] = 2 * tensor[h-2, 0] + 2 * tensor[h-1, 1] - 4 * tensor[h-1, 0]
+        laplacian[h-1, w-1] = 2 * tensor[h-2, w-1] + 2 * tensor[h-1, w-2] - 4 * tensor[h-1, w-1]
+        
+        return laplacian
+
+class SimplifiedPatternFormation(torch.nn.Module):
+    """
+    A simplified version of the BioelectricPatternFormation for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.pattern_complexity = config.get('pattern_complexity', 0.7)
+        self.reaction_rate = config.get('reaction_rate', 0.3)
+        self.diffusion_rate = config.get('diffusion_rate', 0.1)
+        self.field_dimension = config.get('field_dimension', 10)
+        
+    def forward(self, state):
+        """Process a state through simplified pattern formation dynamics."""
+        # Extract morphological state and voltage potential
+        morphological_state = state.morphological_state
+        voltage = state.voltage_potential
+        
+        # Convert to appropriate format if needed
+        if isinstance(morphological_state, torch.Tensor):
+            morph_flat = morphological_state.flatten()
+        else:
+            morph_flat = torch.tensor(morphological_state, device=voltage.device).flatten()
+        
+        # Resize if needed
+        field_dim = self.field_dimension
+        if len(morph_flat) < field_dim*field_dim:
+            # Pad with zeros
+            padding = torch.zeros(field_dim*field_dim - len(morph_flat), device=morph_flat.device)
+            morph_flat = torch.cat([morph_flat, padding])
+        elif len(morph_flat) > field_dim*field_dim:
+            # Truncate
+            morph_flat = morph_flat[:field_dim*field_dim]
+        
+        # Reshape to 2D
+        morph_2d = morph_flat.reshape(field_dim, field_dim)
+        
+        # Apply simple pattern formation rule (simplified reaction-diffusion)
+        voltage_influence = 0.1 * (voltage - voltage.mean())
+        morph_laplacian = self._compute_laplacian(morph_2d)
+        
+        # Update morphological state
+        updated_morph = morph_2d + self.reaction_rate * voltage_influence + self.diffusion_rate * morph_laplacian
+        updated_morph = torch.tanh(updated_morph)  # Bound values
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=state.voltage_potential,
+            ion_gradients=state.ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=updated_morph.flatten()
+        )
+        
+        return new_state
+    
+    def _compute_laplacian(self, tensor):
+        """Compute discrete Laplacian operator (for diffusion)."""
+        # Get dimensions
+        h, w = tensor.shape
+        
+        # Compute discrete Laplacian
+        laplacian = torch.zeros_like(tensor)
+        
+        # Internal points
+        for i in range(1, h-1):
+            for j in range(1, w-1):
+                laplacian[i, j] = (
+                    tensor[i+1, j] + tensor[i-1, j] + 
+                    tensor[i, j+1] + tensor[i, j-1] - 
+                    4 * tensor[i, j]
+                )
+                
+        # Boundary conditions (no-flux)
+        for j in range(1, w-1):
+            laplacian[0, j] = 2 * tensor[1, j] + tensor[0, j+1] + tensor[0, j-1] - 4 * tensor[0, j]
+            laplacian[h-1, j] = 2 * tensor[h-2, j] + tensor[h-1, j+1] + tensor[h-1, j-1] - 4 * tensor[h-1, j]
+        
+        for i in range(1, h-1):
+            laplacian[i, 0] = tensor[i+1, 0] + tensor[i-1, 0] + 2 * tensor[i, 1] - 4 * tensor[i, 0]
+            laplacian[i, w-1] = tensor[i+1, w-1] + tensor[i-1, w-1] + 2 * tensor[i, w-2] - 4 * tensor[i, w-1]
+        
+        # Corners
+        laplacian[0, 0] = 2 * tensor[1, 0] + 2 * tensor[0, 1] - 4 * tensor[0, 0]
+        laplacian[0, w-1] = 2 * tensor[1, w-1] + 2 * tensor[0, w-2] - 4 * tensor[0, w-1]
+        laplacian[h-1, 0] = 2 * tensor[h-2, 0] + 2 * tensor[h-1, 1] - 4 * tensor[h-1, 0]
+        laplacian[h-1, w-1] = 2 * tensor[h-2, w-1] + 2 * tensor[h-1, w-2] - 4 * tensor[h-1, w-1]
+        
+        return laplacian
+
+class SimplifiedColony(torch.nn.Module):
+    """
+    A simplified version of the CellColony for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.communication_strength = config.get('communication_strength', 0.6)
+        
+    def forward(self, state):
+        """Process a state through simplified colony interactions."""
+        # For simplicity, just apply a small amount of global communication
+        new_voltage = state.voltage_potential * (1.0 - self.communication_strength) + \
+                     state.voltage_potential.mean() * self.communication_strength
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=new_voltage,
+            ion_gradients=state.ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
+        )
+        
+        return new_state
+
+class SimplifiedHomeostasis(torch.nn.Module):
+    """
+    A simplified version of the HomeostasisRegulator for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.homeostasis_strength = config.get('homeostasis_strength', 0.5)
+        self.resting_potential = config.get('resting_potential', -0.2)
+        self.target_ion_levels = config.get('target_ion_levels', {
+            'sodium': 0.1,
+            'potassium': 0.8,
+            'calcium': 0.2
+        })
+        
+    def forward(self, state):
+        """Apply simple homeostatic correction."""
+        # Pull voltage toward resting potential
+        voltage_error = state.voltage_potential - self.resting_potential
+        correction = -self.homeostasis_strength * voltage_error
+        new_voltage = state.voltage_potential + correction
+        
+        # Apply simple homeostasis to ion gradients
+        new_ion_gradients = {}
+        for ion, grad in state.ion_gradients.items():
+            if ion in self.target_ion_levels:
+                target = self.target_ion_levels[ion]
+                error = grad - target
+                ion_correction = -self.homeostasis_strength * 0.5 * error
+                new_ion_gradients[ion] = grad + ion_correction
+            else:
+                new_ion_gradients[ion] = grad
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=new_voltage,
+            ion_gradients=new_ion_gradients,
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
+        )
+        
+        return new_state
+
 def init_models(config):
     """Initialize models based on configuration."""
+    global models
+    
     logger.info("Initializing models with current configuration")
     
-    models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
-    models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
-    models['colony'] = CellColony(config['colony']).to(device)
-    models['homeostasis'] = HomeostasisRegulator(config['homeostasis']).to(device)
+    # Initialize core model
+    try:
+        models['core'] = BioelectricConsciousnessCore(config['core']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize full core model: {str(e)}. Using simplified version.")
+        models['core'] = SimplifiedBioelectricCore(config['core']).to(device)
+    
+    # Initialize pattern model
+    try:
+        models['pattern_model'] = BioelectricPatternFormation(config['pattern_formation']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize pattern formation model: {str(e)}. Using simplified version.")
+        models['pattern_model'] = SimplifiedPatternFormation(config['pattern_formation']).to(device)
+    
+    # Initialize colony model
+    try:
+        models['colony'] = CellColony(config['colony']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize colony model: {str(e)}. Using simplified version.")
+        models['colony'] = SimplifiedColony(config['colony']).to(device)
+    
+    # Initialize homeostasis model
+    try:
+        models['homeostasis'] = HomeostasisRegulator(config['homeostasis']).to(device)
+    except Exception as e:
+        logger.warning(f"Failed to initialize homeostasis model: {str(e)}. Using simplified version.")
+        models['homeostasis'] = SimplifiedHomeostasis(config['homeostasis']).to(device)
     
     return models
 
@@ -1940,43 +2326,89 @@ def init_simulation():
 def run_step():
     """Run a single simulation step with provided parameters."""
     try:
+        logger.info("Received run_step request")
         data = request.json
         config_updates = data.get('config_updates', {})
-        state_data = data.get('state')
-        scenario_id = data.get('scenario', 'default')
+        state_data = data.get('state', None)
+        scenario = data.get('scenario', 'default')
+        
+        logger.info(f"Processing scenario: {scenario}, with state: {state_data is not None}")
         
         # Update config with provided parameters
         updated_config = update_config(default_config, config_updates)
         
         # Re-initialize models if config changed significantly
-        init_models(updated_config)
+        if config_updates:
+            init_models(updated_config)
+        
+        # Create initial state if not provided
+        if not state_data:
+            # Create default initial state
+            grid_size = updated_config.get('core', {}).get('field_dimension', 10)
+            
+            # Initialize with small random values
+            voltage_potential = torch.randn(grid_size, grid_size, device=device) * 0.01
+            
+            # Add a specific pattern for demonstration
+            if scenario == 'two_heads':
+                # Add two high-voltage regions suggesting two head formation sites
+                voltage_potential[1:3, 1:3] = 0.8  # Top head voltage pattern
+                voltage_potential[7:9, 7:9] = 0.8  # Bottom head voltage pattern
+            elif scenario == 'regeneration':
+                # Add gradient pattern simulating a cut area
+                for i in range(grid_size):
+                    for j in range(grid_size):
+                        if i > grid_size // 2:
+                            voltage_potential[i, j] = 0.5 * (1 - (i - grid_size//2) / (grid_size//2))
+            
+            ion_gradients = {
+                'sodium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+                'potassium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+                'calcium': torch.randn(grid_size, grid_size, device=device) * 0.01,
+            }
+            
+            morphological_state = torch.zeros(grid_size*grid_size, device=device)
+            
+            # Create state dictionary for JSON serialization
+            state_data = {
+                'voltage_potential': voltage_potential.cpu().numpy().tolist(),
+                'ion_gradients': {
+                    ion: grad.cpu().numpy().tolist() for ion, grad in ion_gradients.items()
+                },
+                'morphological_state': morphological_state.cpu().numpy().tolist()
+            }
+            logger.info(f"Created initial state with dimensions: {len(state_data['voltage_potential'])}x{len(state_data['voltage_potential'][0])}")
         
         # Convert state back to tensors for processing
-        global current_state
-        voltage_potential = torch.tensor(current_state['voltage_potential'], device=device)
+        voltage_potential = torch.tensor(state_data['voltage_potential'], device=device)
         ion_gradients = {
             ion: torch.tensor(grad, device=device) 
-            for ion, grad in current_state['ion_gradients'].items()
+            for ion, grad in state_data['ion_gradients'].items()
         }
-        morphological_state = torch.tensor(current_state['morphological_state'], device=device)
+        morphological_state = torch.tensor(state_data['morphological_state'], device=device)
         
-        # Create BioelectricState object
-        state = BioelectricState(
-            voltage_potential=voltage_potential,
-            ion_gradients=ion_gradients,
-            gap_junction_states=torch.ones_like(voltage_potential),
-            morphological_state=morphological_state
-        )
-        
-        # Process through models
+        # Process state through models
         try:
-            state = models['core'](state)
-            state = models['pattern_model'](state)
-            state = models['colony'](state)
-            state = models['homeostasis'](state)
+            # Create BioelectricState object
+            state = BioelectricState(
+                voltage_potential=voltage_potential,
+                ion_gradients=ion_gradients,
+                gap_junction_states=torch.ones_like(voltage_potential),
+                morphological_state=morphological_state
+            )
+            
+            # Process through models
+            if 'core' in models:
+                state = models['core'](state)
+            if 'pattern_model' in models:
+                state = models['pattern_model'](state)
+            if 'colony' in models:
+                state = models['colony'](state)
+            if 'homeostasis' in models:
+                state = models['homeostasis'](state)
             
             # Convert back to Python native types for JSON serialization
-            current_state = {
+            result_state = {
                 'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
                 'ion_gradients': {
                     ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
@@ -1984,19 +2416,26 @@ def run_step():
                 'morphological_state': state.morphological_state.cpu().numpy().tolist()
             }
             
+            logger.info(f"Processed state, voltage shape: {len(result_state['voltage_potential'])}x{len(result_state['voltage_potential'][0])}")
+            
             return jsonify({
                 'success': True,
-                'state': current_state
+                'state': result_state
             })
             
         except Exception as e:
+            logger.error(f"Error in model processing: {str(e)}")
             return jsonify({
                 'success': False,
                 'error': str(e)
             })
+            
     except Exception as e:
-        logger.error(f"Error running simulation step: {e}")
-        return jsonify({'success': False, 'error': str(e)})
+        logger.error(f"Error in run_step: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'error': str(e)
+        })
 
 @app.route('/api/scenarios', methods=['GET'])
 def get_scenarios():
@@ -2088,9 +2527,315 @@ def planarian_regeneration():
     return jsonify({"message": "Planarian regeneration completed", 
                     "state": get_current_state()})
 
+@app.route('/api/scenarios/<scenario_type>', methods=['POST'])
+def run_experiment(scenario_type):
+    """Run a predefined Levin-inspired experiment"""
+    try:
+        data = request.json
+        steps = data.get('steps', 50)
+        grid_size = default_config['core'].get('field_dimension', 10)
+        
+        # Initialize with appropriate state for the experiment
+        if scenario_type == 'two_head_planarian':
+            # Create planarian-like voltage distribution
+            voltage_potential = torch.zeros((grid_size, grid_size), device=device)
+            
+            # Create body axis with gradient
+            for i in range(grid_size):
+                value = 0.8 - (i / grid_size * 1.6)  # Head is more positive
+                voltage_potential[i, :] = value
+            
+            # Apply two positive spots for two heads
+            voltage_potential[1:3, 3:7] = 0.9  # Top head
+            voltage_potential[grid_size-3:grid_size-1, 3:7] = 0.9  # Bottom head
+            
+            description = "Two-headed planarian experiment: Manipulating bioelectric patterns to induce two-headed regeneration"
+            
+        elif scenario_type == 'eye_induction':
+            # Create base pattern with belly region
+            voltage_potential = torch.zeros((grid_size, grid_size), device=device)
+            
+            # Create general body pattern
+            voltage_potential[:] = 0.2  # Base body voltage
+            
+            # Add eye-inducing voltage in belly region (center-right)
+            center_x, center_y = grid_size//2, int(grid_size * 0.7)
+            for i in range(grid_size):
+                for j in range(grid_size):
+                    # Create circular high-voltage region
+                    dist = ((i - center_x)**2 + (j - center_y)**2) ** 0.5
+                    if dist < grid_size * 0.15:  # Small circular region
+                        voltage_potential[i, j] = 0.9  # Eye-inducing voltage
+            
+            description = "Ectopic Eye Formation: Inducing eye development in non-head regions by creating eye-specific voltage patterns"
+            
+        elif scenario_type == 'organ_reprogramming':
+            # Create pattern for organ conversion (like tail-to-limb)
+            voltage_potential = torch.zeros((grid_size, grid_size), device=device)
+            
+            # Add main body
+            voltage_potential[2:grid_size-2, 2:5] = 0.3  # Body column
+            
+            # Add misplaced organ (tail at side)
+            side_y = grid_size // 2
+            # Diagonal tail coming from side
+            for i in range(4):
+                for j in range(3):
+                    voltage_potential[side_y+i, 5+j+i] = 0.4 - (i*0.05)
+            
+            # Add limb-inducing signal
+            for i in range(3):
+                for j in range(3):
+                    voltage_potential[side_y+i, 5+j] = 0.7  # Limb-inducing voltage
+            
+            description = "Organ Reprogramming: Converting a misplaced tail into a limb through bioelectric signaling"
+            
+        else:
+            return jsonify({'success': False, 'error': f"Unknown scenario: {scenario_type}"})
+        
+        # Create standard ion gradients
+        ion_gradients = {
+            'sodium': torch.ones((grid_size, grid_size), device=device) * 0.1,
+            'potassium': torch.ones((grid_size, grid_size), device=device) * 0.8,
+            'calcium': torch.ones((grid_size, grid_size), device=device) * 0.2,
+        }
+        
+        # Adjust ion gradients based on voltage (simplified relationship)
+        for i in range(grid_size):
+            for j in range(grid_size):
+                v = voltage_potential[i, j].item()
+                ion_gradients['sodium'][i, j] = max(0.05, min(0.3, 0.1 + v * 0.2))
+                ion_gradients['potassium'][i, j] = max(0.5, min(0.95, 0.8 - v * 0.3))
+                ion_gradients['calcium'][i, j] = max(0.1, min(0.4, 0.2 + v * 0.2))
+        
+        # Create morphological state - initially just zeros
+        morphological_state = torch.zeros(grid_size*grid_size, device=device)
+        
+        # Run specified number of steps to evolve the pattern
+        state = BioelectricState(
+            voltage_potential=voltage_potential,
+            ion_gradients=ion_gradients,
+            gap_junction_states=torch.ones_like(voltage_potential),
+            morphological_state=morphological_state
+        )
+        
+        # Process through models for specified steps
+        for _ in range(steps):
+            state = models['core'](state)
+            state = models['pattern_model'](state)
+            state = models['colony'](state)
+            state = models['homeostasis'](state)
+        
+        # Store result in current state
+        global current_state
+        current_state = {
+            'voltage_potential': state.voltage_potential.cpu().numpy().tolist(),
+            'ion_gradients': {
+                ion: grad.cpu().numpy().tolist() for ion, grad in state.ion_gradients.items()
+            },
+            'morphological_state': state.morphological_state.cpu().numpy().tolist()
+        }
+        
+        return jsonify({
+            'success': True,
+            'description': description,
+            'state': current_state,
+            'iteration': steps
+        })
+    
+    except Exception as e:
+        logger.error(f"Error running experiment {scenario_type}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/modify_cell', methods=['POST'])
+def modify_cell():
+    """Modify a specific cell in the bioelectric grid."""
+    try:
+        data = request.json
+        x = data.get('x', 0)
+        y = data.get('y', 0)
+        ion_type = data.get('ion', 'voltage')
+        intensity = data.get('intensity', 0.8)
+        
+        # Get global state
+        global current_state
+        
+        if current_state is None:
+            return jsonify({'success': False, 'error': 'No active simulation'})
+        
+        # Modify the appropriate property
+        if ion_type == 'voltage':
+            voltage_arr = current_state['voltage_potential']
+            if x < len(voltage_arr) and y < len(voltage_arr[0]):
+                voltage_arr[x][y] = intensity
+        else:
+            # Modify ion gradient
+            if ion_type in current_state['ion_gradients']:
+                ion_arr = current_state['ion_gradients'][ion_type]
+                if x < len(ion_arr) and y < len(ion_arr[0]):
+                    ion_arr[x][y] = intensity
+        
+        return jsonify({'success': True, 'state': current_state})
+    
+    except Exception as e:
+        logger.error(f"Error modifying cell: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+def convert_to_plotly_format(data, data_type='voltage'):
+    """
+    Convert tensor data to format suitable for plotly visualization
+    
+    Args:
+        data: Tensor data (voltage, ion gradient, etc.)
+        data_type: Type of data ('voltage', 'ion', 'morphology')
+        
+    Returns:
+        dict: Plot data for plotly
+    """
+    import numpy as np
+    
+    # Convert tensor to numpy if needed
+    if hasattr(data, 'cpu'):
+        data_np = data.cpu().numpy()
+    elif isinstance(data, list):
+        data_np = np.array(data)
+    else:
+        data_np = data
+        
+    # Set colorscale based on data type
+    if data_type == 'voltage':
+        colorscale = 'Viridis'
+        title = 'Membrane Potential (mV)'
+    elif data_type == 'sodium':
+        colorscale = 'Hot'
+        title = 'Sodium Concentration (mM)'
+    elif data_type == 'potassium':
+        colorscale = 'Blues'
+        title = 'Potassium Concentration (mM)'
+    elif data_type == 'calcium':
+        colorscale = 'Greens'
+        title = 'Calcium Concentration (mM)'
+    else:  # morphology
+        colorscale = 'Cividis'
+        title = 'Morphological State'
+    
+    # Create plot data
+    plot_data = {
+        'z': data_np.tolist() if isinstance(data_np, np.ndarray) else data_np,
+        'type': 'heatmap',
+        'colorscale': colorscale,
+        'colorbar': {'title': title}
+    }
+    
+    return plot_data
+
+@app.route('/api/test', methods=['GET'])
+def api_test():
+    """Simple endpoint to test API connectivity."""
+    return jsonify({
+        'success': True,
+        'message': 'API is working!',
+        'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
 if __name__ == '__main__':
     app.run(debug=True)
 </bcm_web/app.py>
+
+<bcm_web/simplified_core.py>
+import torch
+import torch.nn as nn
+from bcm.core.bioelectric_core import BioelectricState
+
+class SimplifiedBioelectricCore(nn.Module):
+    """
+    A simplified version of the BCM core for web visualization.
+    """
+    
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.resting_potential = config.get('resting_potential', -0.2)
+        self.gap_junction_strength = config.get('gap_junction_strength', 0.5)
+        self.field_dimension = config.get('field_dimension', 10)
+        
+    def forward(self, state):
+        """Process a state through simplified bioelectric dynamics."""
+        # Extract components
+        voltage = state.voltage_potential
+        ion_gradients = state.ion_gradients
+        
+        # Simple voltage diffusion through gap junctions
+        voltage_laplacian = self._compute_laplacian(voltage)
+        voltage_diffusion = self.gap_junction_strength * voltage_laplacian
+        
+        # Simple ion channel effects (depolarization/repolarization)
+        sodium_effect = 0.1 * ion_gradients['sodium']
+        potassium_effect = -0.05 * ion_gradients['potassium']
+        calcium_effect = 0.08 * ion_gradients['calcium']
+        
+        # Update voltage
+        voltage_update = voltage_diffusion + sodium_effect + potassium_effect + calcium_effect
+        new_voltage = voltage + 0.1 * voltage_update
+        
+        # Apply non-linearity to keep values in reasonable range
+        new_voltage = torch.tanh(new_voltage)
+        
+        # Simple updates to ion gradients based on voltage
+        new_sodium = ion_gradients['sodium'] * 0.95 + 0.05 * torch.relu(new_voltage)
+        new_potassium = ion_gradients['potassium'] * 0.95 + 0.05 * torch.relu(-new_voltage)
+        new_calcium = ion_gradients['calcium'] * 0.95 + 0.05 * torch.abs(new_voltage)
+        
+        # Create updated state
+        new_state = BioelectricState(
+            voltage_potential=new_voltage,
+            ion_gradients={
+                'sodium': new_sodium,
+                'potassium': new_potassium,
+                'calcium': new_calcium
+            },
+            gap_junction_states=state.gap_junction_states,
+            morphological_state=state.morphological_state
+        )
+        
+        return new_state
+    
+    def _compute_laplacian(self, tensor):
+        """Compute discrete Laplacian operator (for diffusion)."""
+        # Get dimensions
+        h, w = tensor.shape
+        
+        # Compute discrete Laplacian using convolution-like operations
+        laplacian = torch.zeros_like(tensor)
+        
+        # Internal points
+        for i in range(1, h-1):
+            for j in range(1, w-1):
+                laplacian[i, j] = (
+                    tensor[i+1, j] + tensor[i-1, j] + 
+                    tensor[i, j+1] + tensor[i, j-1] - 
+                    4 * tensor[i, j]
+                )
+                
+        # Handle boundary conditions (no-flux)
+        # Top and bottom edges
+        for j in range(1, w-1):
+            laplacian[0, j] = 2 * tensor[1, j] + tensor[0, j+1] + tensor[0, j-1] - 4 * tensor[0, j]
+            laplacian[h-1, j] = 2 * tensor[h-2, j] + tensor[h-1, j+1] + tensor[h-1, j-1] - 4 * tensor[h-1, j]
+        
+        # Left and right edges
+        for i in range(1, h-1):
+            laplacian[i, 0] = tensor[i+1, 0] + tensor[i-1, 0] + 2 * tensor[i, 1] - 4 * tensor[i, 0]
+            laplacian[i, w-1] = tensor[i+1, w-1] + tensor[i-1, w-1] + 2 * tensor[i, w-2] - 4 * tensor[i, w-1]
+        
+        # Corners
+        laplacian[0, 0] = 2 * tensor[1, 0] + 2 * tensor[0, 1] - 4 * tensor[0, 0]
+        laplacian[0, w-1] = 2 * tensor[1, w-1] + 2 * tensor[0, w-2] - 4 * tensor[0, w-1]
+        laplacian[h-1, 0] = 2 * tensor[h-2, 0] + 2 * tensor[h-1, 1] - 4 * tensor[h-1, 0]
+        laplacian[h-1, w-1] = 2 * tensor[h-2, w-1] + 2 * tensor[h-1, w-2] - 4 * tensor[h-1, w-1]
+        
+        return laplacian
+</bcm_web/simplified_core.py>
 
 <bcm_web/static/css/styles.css>
 /* Dark Mode Styles */
@@ -2101,29 +2846,29 @@ body {
 }
 
 .card {
-  background-color: #1e1e1e !important;
-  border-color: #444444;
+  background-color: #1e1e1e;
+  border-color: #333;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .card-header {
   background-color: #2d2d2d;
-  border-bottom: 1px solid #333;
+  border-color: #444;
 }
 
 .form-control,
 .form-select {
-  background-color: #2a2a2a !important;
-  color: #e0e0e0 !important;
-  border-color: #444 !important;
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
 }
 
 .form-control:focus,
 .form-select:focus {
   background-color: #2d2d2d;
   color: #e0e0e0;
-  border-color: #00bcd4;
-  box-shadow: 0 0 0 0.25rem rgba(0, 188, 212, 0.25);
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
 .form-control:disabled,
@@ -2145,13 +2890,14 @@ body {
 }
 
 .btn-outline-secondary {
-  color: #a7acb1;
-  border-color: #a7acb1;
+  color: #adb5bd;
+  border-color: #6c757d;
 }
 
 .btn-outline-secondary:hover {
-  background-color: #6c757d;
   color: #fff;
+  background-color: #5a6268;
+  border-color: #545b62;
 }
 
 .btn-outline-success {
@@ -2197,9 +2943,9 @@ body {
 }
 
 .btn-group .btn.active {
-  background-color: #005a64;
+  background-color: #0d6efd;
   color: white;
-  border-color: #00bcd4;
+  border-color: #0d6efd;
 }
 
 .form-range::-webkit-slider-thumb {
@@ -2222,22 +2968,42 @@ body {
 #visualization,
 #time-series,
 #pattern-metrics {
-  background-color: #2d2d2d;
-  border-radius: 4px;
   width: 100%;
+  background-color: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 0.25rem;
 }
 
 /* Make Plotly dark theme compatible */
 .js-plotly-plot .plotly .main-svg {
-  background-color: #222 !important;
+  background-color: #1e1e1e !important;
 }
 
 .js-plotly-plot .plotly .bg {
-  fill: #222 !important;
+  fill: #1e1e1e !important;
 }
 
 .plotly-legend {
   background-color: rgba(34, 34, 34, 0.7) !important;
+}
+
+.js-plotly-plot .plotly .xtick text,
+.js-plotly-plot .plotly .ytick text,
+.js-plotly-plot .plotly .gtitle,
+.js-plotly-plot .plotly .ztick text {
+  fill: #e0e0e0 !important;
+}
+
+.js-plotly-plot .plotly .xaxislayer-above path,
+.js-plotly-plot .plotly .yaxislayer-above path,
+.js-plotly-plot .plotly .zaxislayer-above path {
+  stroke: #666 !important;
+}
+
+.js-plotly-plot .plotly .xtick,
+.js-plotly-plot .plotly .ytick,
+.js-plotly-plot .plotly .ztick {
+  stroke: #666 !important;
 }
 
 /* Dark scrollbar */
@@ -2273,12 +3039,11 @@ body {
 
 .parameter-control {
   margin-top: 0.5rem;
-  accent-color: #00bcd4;
 }
 
 .value-display {
   font-weight: bold;
-  color: #00bcd4 !important;
+  color: #0d6efd;
 }
 
 .form-label {
@@ -2292,654 +3057,491 @@ header h1 {
   color: #00bcd4;
 }
 
+/* Dark theme for bioelectric visualization */
+.parameter-slider {
+  height: 8px;
+}
+
+.plot-container {
+  width: 100%;
+  height: 300px;
+  background-color: #1e1e1e;
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
 </bcm_web/static/css/styles.css>
 
 <bcm_web/static/js/simulation.js>
-$(document).ready(function () {
-  // Global variables
-  let currentState = null;
-  let iterationCount = 0;
-  let autoRunInterval = null;
-  let currentView = "voltage";
-  let cellSize = 30; // Size of each cell in pixels for the click handler
-  let timeSeriesData = {
-    voltage: [],
-    complexity: [],
-  };
+// Global variables
+let currentState = null;
+let currentView = "voltage";
+let iterationCount = 0;
+let simulationRunning = false;
+let simulationInterval = null;
 
-  // Initialize plots with dark theme
+// Initialize application when DOM is ready
+$(document).ready(function () {
+  console.log("Initializing application");
+
+  // Initialize plots
   initPlots();
 
-  // Load scenarios and parameters
+  // Load scenarios
   loadScenarios();
+
+  // Load parameters
   loadParameters();
 
-  // Event handlers
-  $("#scenario-select").change(function () {
-    const scenarioId = $(this).val();
-    updateScenarioDescription(scenarioId);
+  // Set up event handlers
+  setupEventHandlers();
+});
+
+function initPlots() {
+  console.log("Initializing plots...");
+
+  // Initialize main visualization
+  Plotly.newPlot(
+    "visualization",
+    [
+      {
+        z: Array(10)
+          .fill()
+          .map(() => Array(10).fill(0)),
+        type: "heatmap",
+        colorscale: "Viridis",
+        colorbar: {
+          title: "Voltage (mV)",
+          titlefont: { color: "#fff" },
+          tickfont: { color: "#fff" },
+        },
+      },
+    ],
+    {
+      paper_bgcolor: "#222",
+      plot_bgcolor: "#222",
+      font: { color: "#fff" },
+      margin: { t: 10, l: 50, r: 50, b: 10 },
+    }
+  );
+
+  // Initialize time series plot
+  Plotly.newPlot(
+    "time-series",
+    [
+      {
+        x: [],
+        y: [],
+        type: "scatter",
+        mode: "lines",
+        line: { color: "#00ff00", width: 2 },
+        name: "Average Voltage",
+      },
+    ],
+    {
+      paper_bgcolor: "#222",
+      plot_bgcolor: "#222",
+      font: { color: "#fff" },
+      margin: { t: 10, l: 50, r: 20, b: 40 },
+      xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
+      yaxis: { title: "Voltage", gridcolor: "#444", color: "#fff" },
+    }
+  );
+
+  // Initialize pattern metrics plot
+  Plotly.newPlot(
+    "pattern-metrics",
+    [
+      {
+        x: [],
+        y: [],
+        type: "scatter",
+        mode: "lines",
+        line: { color: "#00ffff", width: 2 },
+        name: "Complexity",
+      },
+    ],
+    {
+      paper_bgcolor: "#222",
+      plot_bgcolor: "#222",
+      font: { color: "#fff" },
+      margin: { t: 10, l: 50, r: 20, b: 40 },
+      xaxis: { title: "Iteration", gridcolor: "#444", color: "#fff" },
+      yaxis: { title: "Complexity", gridcolor: "#444", color: "#fff" },
+    }
+  );
+
+  console.log("Plots initialized");
+}
+
+function loadScenarios() {
+  $.get("/api/scenarios", function (data) {
+    const select = $("#scenario-select");
+    select.empty();
+
+    data.forEach((scenario) => {
+      select.append(`<option value="${scenario.id}">${scenario.name}</option>`);
+    });
+
+    console.log("Scenarios loaded:", data.length);
+  });
+}
+
+function loadParameters() {
+  $.get("/api/parameters", function (data) {
+    const container = $("#parameter-controls");
+    container.empty();
+
+    data.forEach((param) => {
+      container.append(`
+                <div class="mb-3">
+                    <label for="${param.section}-${param.name}" class="form-label">${param.label}</label>
+                    <input type="range" class="form-range parameter-slider" 
+                           id="${param.section}-${param.name}" 
+                           data-section="${param.section}"
+                           data-name="${param.name}"
+                           min="${param.min}" max="${param.max}" step="${param.step}" 
+                           value="${param.default}">
+                    <div class="d-flex justify-content-between">
+                        <small>${param.min}</small>
+                        <small class="parameter-value">${param.default}</small>
+                        <small>${param.max}</small>
+                    </div>
+                </div>
+            `);
+    });
+
+    // Update value display when slider changes
+    $(".parameter-slider").on("input", function () {
+      $(this).siblings("div").find(".parameter-value").text($(this).val());
+    });
+
+    console.log("Parameters loaded:", data.length);
+  });
+}
+
+function setupEventHandlers() {
+  // Start button
+  $("#start-btn").click(function () {
+    if (!simulationRunning) {
+      startSimulation();
+    } else {
+      pauseSimulation();
+    }
   });
 
-  $("#reset-simulation").click(function () {
+  // Step button
+  $("#step-btn").click(function () {
+    runStep();
+  });
+
+  // Reset button
+  $("#reset-btn").click(function () {
     resetSimulation();
   });
 
-  $("#run-simulation").click(function () {
-    if ($(this).text() === "Run") {
-      startAutoRun();
-      $(this).text("Stop");
-    } else {
-      stopAutoRun();
-      $(this).text("Run");
-    }
-  });
-
-  $("#step-button").click(function () {
-    runSimulationStep();
-  });
-
-  $("#auto-run").change(function () {
-    if ($(this).is(":checked")) {
-      startAutoRun();
-    } else {
-      stopAutoRun();
-    }
-  });
-
-  $('.btn-group[role="group"] button').click(function () {
-    // Update active button
-    $(this).siblings().removeClass("active");
+  // View selector
+  $('.btn-group[role="group"] .btn').click(function () {
+    $('.btn-group[role="group"] .btn').removeClass("active");
     $(this).addClass("active");
-
-    // Update current view
     currentView = $(this).data("view");
 
-    // Update visualization
     if (currentState) {
       updateVisualization();
     }
   });
 
-  $("#export-data").click(function () {
-    exportData();
-  });
-
-  // Add interactive cell state modification
+  // Click on visualization to modify cell
   $("#visualization").on("click", function (e) {
     if (!currentState) return;
 
-    // Get plot dimensions
-    const plotElement = document.getElementById("visualization");
-    const plotRect = plotElement.getBoundingClientRect();
+    const rect = e.target.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
 
-    // Calculate the grid size from current state
+    // Convert click coordinates to cell grid coordinates
+    const width = $(this).width();
+    const height = $(this).height();
     const gridSize = currentState.voltage_potential.length;
 
-    // Calculate cell size in pixels
-    const cellWidth = plotRect.width / gridSize;
-    const cellHeight = plotRect.height / gridSize;
+    const x = Math.floor((offsetX / width) * gridSize);
+    const y = Math.floor((offsetY / height) * gridSize);
 
-    // Calculate click position
-    const x = Math.floor((e.clientX - plotRect.left) / cellWidth);
-    const y = Math.floor((e.clientY - plotRect.top) / cellHeight);
+    // Get sliders values
+    const intensity = parseFloat($("#homeostasis-homeostasis_strength").val());
 
-    // Ensure coordinates are within bounds
-    if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
-      // Get currently selected ion and intensity
-      const ionType = $("#ion-selector").val() || "voltage";
-      const intensity = parseFloat($("#intensity-slider").val() || 0.8);
-
-      console.log(
-        `Modifying cell at (${x}, ${y}) with ${ionType} = ${intensity}`
-      );
-
-      // Send update request to server
-      $.ajax({
-        url: "/api/modify_cell",
-        type: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({
-          x: x,
-          y: y,
-          ion: ionType,
-          intensity: intensity,
-          state: currentState,
-        }),
-        success: function (response) {
-          if (response.success) {
-            currentState = response.state;
-            updateVisualization();
-          } else {
-            console.error("Error modifying cell:", response.error);
-          }
-        },
-        error: function (xhr, status, error) {
-          console.error("AJAX error:", error);
-        },
-      });
-    }
-  });
-
-  // Add ion selector and intensity slider handlers
-  $("#ion-selector").change(function () {
-    // Update intensity slider label based on selected ion
-    const ion = $(this).val();
-    $("#intensity-label").text(
-      `${ion.charAt(0).toUpperCase() + ion.slice(1)} Intensity`
-    );
-  });
-
-  // Add experiment preset buttons
-  $("#experiment-presets").change(function () {
-    const experimentType = $(this).val();
-
-    // Disable the control during experiment setup
-    $(this).prop("disabled", true);
-
-    // Request server to set up the experiment
-    $.ajax({
-      url: `/api/scenarios/${experimentType}`,
-      type: "POST",
-      contentType: "application/json",
-      data: JSON.stringify({
-        steps: 50, // Initial run steps
-      }),
-      success: function (response) {
+    // Modify cell
+    $.post(
+      "/api/modify_cell",
+      {
+        x: y, // Swap x/y for correct orientation in heatmap
+        y: x,
+        ion: currentView === "voltage" ? "voltage" : currentView,
+        intensity: intensity,
+      },
+      function (response) {
         if (response.success) {
-          // Update UI with experiment state
-          $("#experiment-description").text(response.description);
           currentState = response.state;
-          iterationCount = response.iteration || 0;
-          $("#iteration-count").val(iterationCount);
           updateVisualization();
-        } else {
-          console.error("Error setting up experiment:", response.error);
         }
-        // Re-enable the control
-        $("#experiment-presets").prop("disabled", false);
-      },
-      error: function (xhr, status, error) {
-        console.error("AJAX error:", error);
-        // Re-enable the control
-        $("#experiment-presets").prop("disabled", false);
-      },
-    });
+      }
+    );
+  });
+}
+
+function startSimulation() {
+  simulationRunning = true;
+  $("#start-btn")
+    .text("Pause")
+    .removeClass("btn-outline-primary")
+    .addClass("btn-outline-warning");
+
+  // Run simulation at approximately 10 FPS
+  simulationInterval = setInterval(function () {
+    runStep();
+  }, 100);
+}
+
+function pauseSimulation() {
+  simulationRunning = false;
+  $("#start-btn")
+    .text("Start")
+    .removeClass("btn-outline-warning")
+    .addClass("btn-outline-primary");
+
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+  }
+}
+
+function resetSimulation() {
+  pauseSimulation();
+  iterationCount = 0;
+  $("#iteration-counter").text("Iteration: 0");
+
+  // Get selected scenario
+  const scenario = $("#scenario-select").val();
+
+  // Initialize simulation with selected scenario
+  $.post(
+    "/api/init_simulation",
+    {
+      scenario: scenario,
+    },
+    function (response) {
+      if (response.success) {
+        currentState = response.state;
+        updateVisualization();
+      }
+    }
+  );
+}
+
+function runStep() {
+  // Get current parameter values
+  let configUpdates = {};
+  $(".parameter-slider").each(function () {
+    const section = $(this).data("section");
+    const name = $(this).data("name");
+    const value = parseFloat($(this).val());
+
+    if (!configUpdates[section]) {
+      configUpdates[section] = {};
+    }
+
+    configUpdates[section][name] = value;
   });
 
-  // Functions
-  function loadScenarios() {
-    $.get("/api/scenarios", function (scenarios) {
-      const select = $("#scenario-select");
-      select.empty();
+  // Get selected scenario
+  const scenario = $("#scenario-select").val();
 
-      scenarios.forEach(function (scenario) {
-        select.append(
-          `<option value="${scenario.id}">${scenario.name}</option>`
-        );
-      });
-
-      // Set initial description
-      updateScenarioDescription(scenarios[0].id);
-    });
-  }
-
-  function updateScenarioDescription(scenarioId) {
-    $.get("/api/scenarios", function (scenarios) {
-      const scenario = scenarios.find((s) => s.id === scenarioId);
-      $("#scenario-description").text(scenario.description);
-    });
-  }
-
-  function loadParameters() {
-    $.get("/api/parameters", function (parameters) {
-      const container = $("#parameters-container");
-      container.empty();
-
-      parameters.forEach(function (param) {
-        const html = `
-          <div class="mb-3">
-              <label for="${param.section}-${param.name}" class="form-label text-light">${param.label}</label>
-              <input type="range" class="form-range parameter-control" 
-                  id="${param.section}-${param.name}"
-                  data-section="${param.section}"
-                  data-name="${param.name}"
-                  min="${param.min}" max="${param.max}" step="${param.step}"
-                  value="${param.default}">
-              <div class="d-flex justify-content-between">
-                  <span class="small text-light">${param.min}</span>
-                  <span class="small value-display text-info">${param.default}</span>
-                  <span class="small text-light">${param.max}</span>
-              </div>
-              <p class="text-muted small">${param.description}</p>
-          </div>
-        `;
-        container.append(html);
-      });
-
-      // Add event listeners for sliders
-      $(".parameter-control").on("input", function () {
-        // Update display value
-        $(this).closest(".mb-3").find(".value-display").text($(this).val());
-      });
-    });
-  }
-
-  function initPlots() {
-    // Set dark theme for Plotly
-    const darkTheme = {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      font: { color: "#fff" },
-      title: { font: { color: "#fff" } },
-      xaxis: {
-        title: { font: { color: "#fff" } },
-        color: "#fff",
-        gridcolor: "#444",
-      },
-      yaxis: {
-        title: { font: { color: "#fff" } },
-        color: "#fff",
-        gridcolor: "#444",
-      },
-    };
-
-    // Create initial empty voltage potential plot
-    const emptyHeatmap = {
-      z: Array(10)
-        .fill()
-        .map(() => Array(10).fill(0)),
-      type: "heatmap",
-      colorscale: "Plasma",
-    };
-
-    Plotly.newPlot("visualization", [emptyHeatmap], {
-      ...darkTheme,
-      margin: { t: 0, l: 0, r: 0, b: 0 },
-    });
-
-    // Create empty time series plot
-    const timeSeriesLayout = {
-      ...darkTheme,
-      title: "Average Voltage Over Time",
-      xaxis: { ...darkTheme.xaxis, title: "Iteration" },
-      yaxis: { ...darkTheme.yaxis, title: "Value" },
-      margin: { t: 30, l: 40, r: 10, b: 40 },
-    };
-
-    Plotly.newPlot(
-      "time-series",
-      [
-        {
-          x: [],
-          y: [],
-          type: "scatter",
-          mode: "lines",
-          name: "Avg Voltage",
-          line: { color: "#00ffff" }, // Cyan color for visibility on dark background
-        },
-      ],
-      timeSeriesLayout
-    );
-
-    // Create empty pattern metrics plot
-    const metricsLayout = {
-      ...darkTheme,
-      title: "Pattern Complexity",
-      xaxis: { ...darkTheme.xaxis, title: "Iteration" },
-      yaxis: { ...darkTheme.yaxis, title: "Complexity" },
-      margin: { t: 30, l: 40, r: 10, b: 40 },
-    };
-
-    Plotly.newPlot(
-      "pattern-metrics",
-      [
-        {
-          x: [],
-          y: [],
-          type: "scatter",
-          mode: "lines",
-          name: "Complexity",
-          line: { color: "#ff9500" }, // Orange color for visibility on dark background
-        },
-      ],
-      metricsLayout
-    );
-  }
-
-  function updateVisualization() {
-    let data = [];
-
-    if (currentView === "voltage") {
-      data = [
-        {
-          z: currentState.voltage_potential,
-          type: "heatmap",
-          colorscale: "Plasma",
-          zmin: -1,
-          zmax: 1,
-          colorbar: {
-            title: "Voltage (mV)",
-            tickfont: { color: "#fff" },
-            titlefont: { color: "#fff" },
-          },
-        },
-      ];
-    } else if (currentView === "morphology") {
-      // Reshape 1D morphological state to 2D for visualization
-      const size = Math.sqrt(currentState.morphological_state.length);
-      const morphology2D = [];
-
-      for (let i = 0; i < size; i++) {
-        const row = [];
-        for (let j = 0; j < size; j++) {
-          row.push(currentState.morphological_state[i * size + j]);
-        }
-        morphology2D.push(row);
-      }
-
-      data = [
-        {
-          z: morphology2D,
-          type: "heatmap",
-          colorscale: "YlOrBr",
-          zmin: -1,
-          zmax: 1,
-          colorbar: {
-            title: "Morphology",
-            tickfont: { color: "#fff" },
-            titlefont: { color: "#fff" },
-          },
-        },
-      ];
-    } else {
-      // Ion gradient views (sodium, potassium, calcium)
-      const ionName = currentView;
-
-      if (currentState.ion_gradients[ionName]) {
-        data = [
-          {
-            z: currentState.ion_gradients[ionName],
-            type: "heatmap",
-            colorscale:
-              ionName === "sodium"
-                ? "Hot"
-                : ionName === "potassium"
-                ? "Bluered"
-                : "Greens",
-            zmin: -1,
-            zmax: 1,
-            colorbar: {
-              title: `${
-                ionName.charAt(0).toUpperCase() + ionName.slice(1)
-              } (mM)`,
-              tickfont: { color: "#fff" },
-              titlefont: { color: "#fff" },
-            },
-          },
-        ];
-      }
-    }
-
-    // Update the plot with current data
-    Plotly.react("visualization", data, {
-      paper_bgcolor: "#222",
-      plot_bgcolor: "#222",
-      margin: { t: 0, l: 0, r: 0, b: 0 },
-    });
-
-    // Update time series data if we have state data
-    if (currentState.voltage_potential) {
-      const flatVoltage = currentState.voltage_potential.flat();
-      const avgVoltage =
-        flatVoltage.reduce((a, b) => a + b, 0) / flatVoltage.length;
-
-      // Calculate a simple "complexity" metric - standard deviation of voltage
-      const variance =
-        flatVoltage.reduce((a, b) => a + Math.pow(b - avgVoltage, 2), 0) /
-        flatVoltage.length;
-      const complexity = Math.sqrt(variance);
-
-      // Update time series
-      Plotly.extendTraces(
-        "time-series",
-        {
-          x: [[iterationCount]],
-          y: [[avgVoltage]],
-        },
-        [0]
-      );
-
-      // Update metrics
-      Plotly.extendTraces(
-        "pattern-metrics",
-        {
-          x: [[iterationCount]],
-          y: [[complexity]],
-        },
-        [0]
-      );
-
-      // Keep a limited window of data points
-      const maxPoints = 100;
-      if (iterationCount > maxPoints) {
-        Plotly.relayout("time-series", {
-          xaxis: {
-            range: [iterationCount - maxPoints, iterationCount],
-            color: "#fff",
-            gridcolor: "#444",
-          },
-        });
-
-        Plotly.relayout("pattern-metrics", {
-          xaxis: {
-            range: [iterationCount - maxPoints, iterationCount],
-            color: "#fff",
-            gridcolor: "#444",
-          },
-        });
-      }
-    }
-  }
-
-  function runSimulationStep() {
-    // Collect updated parameters
-    const configUpdates = {};
-
-    $(".parameter-control").each(function () {
-      const section = $(this).data("section");
-      const name = $(this).data("name");
-      const value = parseFloat($(this).val());
-
-      if (!configUpdates[section]) {
-        configUpdates[section] = {};
-      }
-
-      configUpdates[section][name] = value;
-    });
-
-    // Prepare request data
-    const requestData = {
+  // Send request to run a step
+  $.post(
+    "/api/run_step",
+    {
       config_updates: configUpdates,
       state: currentState,
-      scenario: $("#scenario-select").val(),
-    };
+      scenario: scenario,
+    },
+    function (response) {
+      if (response.success) {
+        // Update state
+        currentState = response.state;
 
-    // Send request to server
-    $.ajax({
-      url: "/api/run_step",
-      type: "POST",
-      contentType: "application/json",
-      data: JSON.stringify(requestData),
-      success: function (response) {
-        if (response.success) {
-          currentState = response.state;
-          iterationCount++;
-          $("#iteration-count").val(iterationCount);
+        // Update iteration count
+        iterationCount++;
+        $("#iteration-counter").text("Iteration: " + iterationCount);
 
-          // Update visualizations
-          updateVisualization();
-        } else {
-          console.error("Error running simulation step:", response.error);
-          stopAutoRun();
-        }
-      },
-      error: function (xhr, status, error) {
-        console.error("AJAX error:", error);
-        stopAutoRun();
-      },
-    });
-  }
-
-  function resetSimulation() {
-    // Stop auto-run if active
-    stopAutoRun();
-
-    // Reset state and counter
-    currentState = null;
-    iterationCount = 0;
-    $("#iteration-count").val(0);
-
-    // Reset time series data
-    Plotly.react(
-      "time-series",
-      [
-        {
-          x: [],
-          y: [],
-          type: "scatter",
-          mode: "lines",
-          name: "Avg Voltage",
-          line: { color: "#00ffff" },
-        },
-      ],
-      {
-        paper_bgcolor: "#222",
-        plot_bgcolor: "#222",
-        font: { color: "#fff" },
-        title: {
-          text: "Average Voltage Over Time",
-          font: { color: "#fff" },
-        },
-        xaxis: {
-          title: { text: "Iteration", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        yaxis: {
-          title: { text: "Value", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        margin: { t: 30, l: 40, r: 10, b: 40 },
+        // Update visualization
+        updateVisualization();
       }
-    );
+    }
+  );
+}
 
-    Plotly.react(
-      "pattern-metrics",
-      [
-        {
-          x: [],
-          y: [],
-          type: "scatter",
-          mode: "lines",
-          name: "Complexity",
-          line: { color: "#ff9500" },
-        },
-      ],
+function updateVisualization() {
+  console.log("Updating visualization with current state");
+
+  if (!currentState) {
+    console.error("No current state available");
+    return;
+  }
+
+  // Select data based on current view
+  let plotData = [];
+
+  if (currentView === "voltage" && currentState.voltage_potential) {
+    plotData = [
       {
-        paper_bgcolor: "#222",
-        plot_bgcolor: "#222",
-        font: { color: "#fff" },
-        title: {
-          text: "Pattern Complexity",
-          font: { color: "#fff" },
+        z: currentState.voltage_potential,
+        type: "heatmap",
+        colorscale: "Viridis",
+        colorbar: {
+          title: "Voltage (mV)",
+          titlefont: { color: "#fff" },
+          tickfont: { color: "#fff" },
         },
-        xaxis: {
-          title: { text: "Iteration", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        yaxis: {
-          title: { text: "Complexity", font: { color: "#fff" } },
-          color: "#fff",
-          gridcolor: "#444",
-        },
-        margin: { t: 30, l: 40, r: 10, b: 40 },
+      },
+    ];
+  } else if (currentView === "morphology" && currentState.morphological_state) {
+    // Convert 1D morphological state to 2D for visualization
+    const size = Math.sqrt(currentState.morphological_state.length);
+    let morphGrid = [];
+
+    for (let i = 0; i < size; i++) {
+      let row = [];
+      for (let j = 0; j < size; j++) {
+        row.push(currentState.morphological_state[i * size + j]);
       }
-    );
-
-    // Run initial simulation step to get starting state
-    runSimulationStep();
-
-    // Reset button text
-    $("#run-simulation").text("Run");
-  }
-
-  function startAutoRun() {
-    // Clear existing interval if any
-    stopAutoRun();
-
-    // Start new interval
-    autoRunInterval = setInterval(function () {
-      runSimulationStep();
-    }, 200); // Run every 200ms
-
-    // Update checkbox
-    $("#auto-run").prop("checked", true);
-    $("#run-simulation").text("Stop");
-  }
-
-  function stopAutoRun() {
-    if (autoRunInterval) {
-      clearInterval(autoRunInterval);
-      autoRunInterval = null;
+      morphGrid.push(row);
     }
 
-    // Update checkbox
-    $("#auto-run").prop("checked", false);
-    $("#run-simulation").text("Run");
+    plotData = [
+      {
+        z: morphGrid,
+        type: "heatmap",
+        colorscale: "Cividis",
+        colorbar: {
+          title: "Morphological State",
+          titlefont: { color: "#fff" },
+          tickfont: { color: "#fff" },
+        },
+      },
+    ];
+  } else if (
+    currentState.ion_gradients &&
+    currentState.ion_gradients[currentView]
+  ) {
+    // Ion gradients (sodium, potassium, calcium)
+    let colorscale = "Hot";
+    if (currentView === "potassium") colorscale = "Blues";
+    if (currentView === "calcium") colorscale = "Greens";
+
+    plotData = [
+      {
+        z: currentState.ion_gradients[currentView],
+        type: "heatmap",
+        colorscale: colorscale,
+        colorbar: {
+          title: `${
+            currentView.charAt(0).toUpperCase() + currentView.slice(1)
+          } (mM)`,
+          titlefont: { color: "#fff" },
+          tickfont: { color: "#fff" },
+        },
+      },
+    ];
   }
 
-  function exportData() {
-    if (!currentState) return;
+  // Update the main visualization
+  Plotly.react("visualization", plotData, {
+    paper_bgcolor: "#222",
+    plot_bgcolor: "#222",
+    font: { color: "#fff" },
+    margin: { t: 10, l: 50, r: 50, b: 10 },
+  });
 
-    // Prepare data for export
-    const exportData = {
-      iteration: iterationCount,
-      state: currentState,
-      parameters: {},
-    };
+  // Update time series plot
+  if (currentState.voltage_potential) {
+    // Calculate average voltage
+    let totalVoltage = 0;
+    let count = 0;
 
-    // Add parameters
-    $(".parameter-control").each(function () {
-      const section = $(this).data("section");
-      const name = $(this).data("name");
-      const value = parseFloat($(this).val());
-
-      if (!exportData.parameters[section]) {
-        exportData.parameters[section] = {};
+    for (let i = 0; i < currentState.voltage_potential.length; i++) {
+      for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
+        totalVoltage += currentState.voltage_potential[i][j];
+        count++;
       }
+    }
 
-      exportData.parameters[section][name] = value;
-    });
+    const avgVoltage = totalVoltage / count;
 
-    // Convert to JSON and create download link
-    const dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(exportData, null, 2));
-    const downloadAnchorNode = document.createElement("a");
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute(
-      "download",
-      `bcm_simulation_${iterationCount}.json`
+    // Calculate pattern complexity (simplified as standard deviation)
+    let sumSquaredDiff = 0;
+    for (let i = 0; i < currentState.voltage_potential.length; i++) {
+      for (let j = 0; j < currentState.voltage_potential[i].length; j++) {
+        sumSquaredDiff += Math.pow(
+          currentState.voltage_potential[i][j] - avgVoltage,
+          2
+        );
+      }
+    }
+
+    const complexity = Math.sqrt(sumSquaredDiff / count);
+
+    // Update time series
+    Plotly.extendTraces(
+      "time-series",
+      {
+        x: [[iterationCount]],
+        y: [[avgVoltage]],
+      },
+      [0]
     );
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+
+    // Update complexity metrics
+    Plotly.extendTraces(
+      "pattern-metrics",
+      {
+        x: [[iterationCount]],
+        y: [[complexity]],
+      },
+      [0]
+    );
+
+    // Show only the last 50 data points for clarity
+    const maxPoints = 50;
+    if (iterationCount > maxPoints) {
+      Plotly.relayout("time-series", {
+        xaxis: {
+          range: [iterationCount - maxPoints, iterationCount],
+          title: "Iteration",
+          gridcolor: "#444",
+          color: "#fff",
+        },
+      });
+
+      Plotly.relayout("pattern-metrics", {
+        xaxis: {
+          range: [iterationCount - maxPoints, iterationCount],
+          title: "Iteration",
+          gridcolor: "#444",
+          color: "#fff",
+        },
+      });
+    }
   }
 
-  // Initialize by resetting
-  resetSimulation();
+  console.log("Visualization updated");
+}
+
+// Run a single step when the page loads to initialize
+$(document).ready(function () {
+  // Wait a bit for everything to load
+  setTimeout(function () {
+    runStep();
+  }, 1000);
 });
 
 </bcm_web/static/js/simulation.js>
@@ -2952,7 +3554,7 @@ $(document).ready(function () {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bioelectric Consciousness Module - Interactive Explorer</title>
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
     <link
@@ -2961,153 +3563,63 @@ $(document).ready(function () {
     />
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+      }
+      .plot-container {
+        width: 100%;
+        height: 300px;
+        background-color: #1e1e1e;
+        border-radius: 5px;
+        padding: 10px;
+      }
+    </style>
   </head>
-  <body class="bg-dark text-light">
-    <div class="container-fluid">
-      <header class="bg-black text-light p-3 mb-4">
-        <h1>Bioelectric Consciousness Module</h1>
-        <p class="lead">
-          Interactive exploration of bioelectric pattern formation and signaling
-          inspired by Michael Levin's research
-        </p>
-      </header>
+  <body>
+    <div class="container-fluid mt-3">
+      <h1 class="text-center text-info mb-4">
+        Bioelectric Consciousness Module
+      </h1>
 
       <div class="row">
         <!-- Controls Panel -->
         <div class="col-md-3">
-          <div class="card bg-dark border-secondary mb-4">
+          <div class="card bg-dark text-light border-secondary mb-4">
             <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Experimental Scenarios</h5>
+              <h5 class="text-info">Experiment Controls</h5>
             </div>
             <div class="card-body">
-              <select
-                id="scenario-select"
-                class="form-select mb-3 bg-dark text-light border-secondary"
-              >
-                <!-- Will be populated dynamically -->
-              </select>
-              <p id="scenario-description" class="text-muted small"></p>
-              <button
-                id="reset-simulation"
-                class="btn btn-outline-secondary btn-sm"
-              >
-                Reset
-              </button>
-              <button
-                id="run-simulation"
-                class="btn btn-outline-primary btn-sm"
-              >
-                Run
-              </button>
-              <div class="form-check mt-3">
-                <input class="form-check-input" type="checkbox" id="auto-run" />
-                <label class="form-check-label" for="auto-run">
-                  Auto-run simulation
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="card bg-dark border-secondary mb-4">
-            <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Parameters</h5>
-            </div>
-            <div class="card-body" id="parameters-container">
-              <!-- Will be populated dynamically -->
-            </div>
-          </div>
-
-          <div class="card bg-dark border-secondary mb-4">
-            <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Cell Manipulation</h5>
-            </div>
-            <div class="card-body">
-              <p class="small">
-                Click on the visualization grid to modify cells directly
-              </p>
               <div class="mb-3">
-                <label for="ion-selector" class="form-label"
-                  >Property to Modify</label
-                >
+                <label for="scenario-select" class="form-label">Scenario</label>
                 <select
-                  id="ion-selector"
-                  class="form-select bg-dark text-light border-secondary"
+                  id="scenario-select"
+                  class="form-select bg-dark text-light"
                 >
-                  <option value="voltage">Voltage Potential</option>
-                  <option value="sodium">Sodium Ion (Na+)</option>
-                  <option value="potassium">Potassium Ion (K+)</option>
-                  <option value="calcium">Calcium Ion (Ca2+)</option>
+                  <!-- Scenarios will be populated by JavaScript -->
                 </select>
               </div>
-              <div class="mb-3">
-                <label
-                  id="intensity-label"
-                  for="intensity-slider"
-                  class="form-label"
-                  >Voltage Intensity</label
-                >
-                <input
-                  type="range"
-                  class="form-range"
-                  id="intensity-slider"
-                  min="-1"
-                  max="1"
-                  step="0.1"
-                  value="0.8"
-                />
-                <div class="d-flex justify-content-between">
-                  <span class="small">-1.0</span>
-                  <span class="small value-display text-info">0.8</span>
-                  <span class="small">1.0</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="card bg-dark border-secondary">
-            <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Levin-Inspired Experiments</h5>
-            </div>
-            <div class="card-body">
-              <div class="mb-3">
-                <label for="experiment-presets" class="form-label"
-                  >Predefined Experiments</label
-                >
-                <select
-                  id="experiment-presets"
-                  class="form-select bg-dark text-light border-secondary"
-                >
-                  <option value="" selected disabled>
-                    Select an experiment
-                  </option>
-                  <option value="two_head_planarian">
-                    Two-Headed Planarian
-                  </option>
-                  <option value="eye_induction">Ectopic Eye Formation</option>
-                  <option value="organ_reprogramming">
-                    Organ Reprogramming
-                  </option>
-                </select>
+              <div id="parameter-controls">
+                <!-- Parameters will be populated by JavaScript -->
               </div>
-              <p id="experiment-description" class="text-muted small mt-2"></p>
-              <div class="mb-3">
-                <label for="iteration-count" class="form-label"
-                  >Iteration</label
-                >
-                <input
-                  type="text"
-                  class="form-control bg-dark text-light border-secondary"
-                  id="iteration-count"
-                  readonly
-                  value="0"
-                />
+
+              <div class="d-grid gap-2 mt-4">
+                <button id="start-btn" class="btn btn-outline-primary">
+                  Start
+                </button>
+                <button id="step-btn" class="btn btn-outline-success">
+                  Run Step
+                </button>
+                <button id="reset-btn" class="btn btn-outline-warning">
+                  Reset
+                </button>
               </div>
-              <button id="step-button" class="btn btn-outline-info btn-sm">
-                Step
-              </button>
-              <button id="export-data" class="btn btn-outline-secondary btn-sm">
-                Export Data
-              </button>
+
+              <div class="mt-4">
+                <p id="iteration-counter" class="text-center">Iteration: 0</p>
+              </div>
             </div>
           </div>
         </div>
@@ -3115,77 +3627,75 @@ $(document).ready(function () {
         <!-- Visualization Panel -->
         <div class="col-md-9">
           <div class="card bg-dark border-secondary mb-4">
-            <div
-              class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center"
-            >
-              <h5 class="text-info">Bioelectric Visualization</h5>
-              <div class="btn-group btn-group-sm" role="group">
+            <div class="card-header bg-dark border-secondary">
+              <h5 class="text-info">Bioelectric Pattern Visualization</h5>
+            </div>
+            <div class="card-body">
+              <div class="btn-group mb-3" role="group">
                 <button
                   type="button"
-                  class="btn btn-outline-info active"
+                  class="btn btn-outline-secondary btn-sm active"
                   data-view="voltage"
                 >
                   Voltage
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="sodium"
                 >
-                  Na+ Gradient
+                  Sodium
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="potassium"
                 >
-                  K+ Gradient
+                  Potassium
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="calcium"
                 >
-                  Ca2+ Gradient
+                  Calcium
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-info"
+                  class="btn btn-outline-secondary btn-sm"
                   data-view="morphology"
                 >
                   Morphology
                 </button>
               </div>
-            </div>
-            <div class="card-body p-0">
-              <div id="visualization" style="height: 500px"></div>
+              <div id="visualization" class="plot-container"></div>
             </div>
           </div>
 
-          <div class="card bg-dark border-secondary">
-            <div class="card-header bg-dark border-secondary">
-              <h5 class="text-info">Emergent Properties</h5>
-            </div>
-            <div class="card-body">
-              <div class="row">
-                <div class="col-md-6">
-                  <div id="time-series" style="height: 250px"></div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card bg-dark border-secondary mb-4">
+                <div class="card-header bg-dark border-secondary">
+                  <h5 class="text-info">Voltage Potential</h5>
                 </div>
-                <div class="col-md-6">
-                  <div id="pattern-metrics" style="height: 250px"></div>
+                <div class="card-body">
+                  <div id="time-series" class="plot-container"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card bg-dark border-secondary mb-4">
+                <div class="card-header bg-dark border-secondary">
+                  <h5 class="text-info">Pattern Complexity</h5>
+                </div>
+                <div class="card-body">
+                  <div id="pattern-metrics" class="plot-container"></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      <footer class="text-center mt-4 mb-2">
-        <p class="small text-muted">
-          Bioelectric Consciousness Module - Inspired by Michael Levin's
-          research on bioelectricity in morphogenesis
-        </p>
-      </footer>
     </div>
 
     <script src="{{ url_for('static', filename='js/simulation.js') }}"></script>

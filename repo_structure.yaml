@@ -72,6 +72,8 @@
     contents:
     - path: /bcm_web/app.py
       type: file
+    - path: /bcm_web/simplified_core.py
+      type: file
     - path: /bcm_web/static
       type: directory
       contents:
