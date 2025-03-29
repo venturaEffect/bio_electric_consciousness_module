@@ -490,9 +490,13 @@ def init_simulation():
 def run_step():
     """Run a single simulation step with provided parameters."""
     try:
+        logger.info("Received run_step request")
         data = request.json
         config_updates = data.get('config_updates', {})
         state_data = data.get('state', None)
+        scenario = data.get('scenario', 'default')
+        
+        logger.info(f"Processing scenario: {scenario}, with state: {state_data is not None}")
         
         # Update config with provided parameters
         updated_config = update_config(default_config, config_updates)
@@ -504,16 +508,22 @@ def run_step():
         # Create initial state if not provided
         if not state_data:
             # Create default initial state
-            grid_size = updated_config['core'].get('field_dimension', 10)
+            grid_size = updated_config.get('core', {}).get('field_dimension', 10)
             
             # Initialize with small random values
             voltage_potential = torch.randn(grid_size, grid_size, device=device) * 0.01
             
             # Add a specific pattern for demonstration
-            if data.get('scenario') == 'two_heads':
+            if scenario == 'two_heads':
                 # Add two high-voltage regions suggesting two head formation sites
                 voltage_potential[1:3, 1:3] = 0.8  # Top head voltage pattern
                 voltage_potential[7:9, 7:9] = 0.8  # Bottom head voltage pattern
+            elif scenario == 'regeneration':
+                # Add gradient pattern simulating a cut area
+                for i in range(grid_size):
+                    for j in range(grid_size):
+                        if i > grid_size // 2:
+                            voltage_potential[i, j] = 0.5 * (1 - (i - grid_size//2) / (grid_size//2))
             
             ion_gradients = {
                 'sodium': torch.randn(grid_size, grid_size, device=device) * 0.01,
@@ -531,6 +541,7 @@ def run_step():
                 },
                 'morphological_state': morphological_state.cpu().numpy().tolist()
             }
+            logger.info(f"Created initial state with dimensions: {len(state_data['voltage_potential'])}x{len(state_data['voltage_potential'][0])}")
         
         # Convert state back to tensors for processing
         voltage_potential = torch.tensor(state_data['voltage_potential'], device=device)
@@ -540,20 +551,25 @@ def run_step():
         }
         morphological_state = torch.tensor(state_data['morphological_state'], device=device)
         
-        # Create BioelectricState object
-        state = BioelectricState(
-            voltage_potential=voltage_potential,
-            ion_gradients=ion_gradients,
-            gap_junction_states=torch.ones_like(voltage_potential),
-            morphological_state=morphological_state
-        )
-        
-        # Process through models
+        # Process state through models
         try:
-            state = models['core'](state)
-            state = models['pattern_model'](state)
-            state = models['colony'](state)
-            state = models['homeostasis'](state)
+            # Create BioelectricState object
+            state = BioelectricState(
+                voltage_potential=voltage_potential,
+                ion_gradients=ion_gradients,
+                gap_junction_states=torch.ones_like(voltage_potential),
+                morphological_state=morphological_state
+            )
+            
+            # Process through models
+            if 'core' in models:
+                state = models['core'](state)
+            if 'pattern_model' in models:
+                state = models['pattern_model'](state)
+            if 'colony' in models:
+                state = models['colony'](state)
+            if 'homeostasis' in models:
+                state = models['homeostasis'](state)
             
             # Convert back to Python native types for JSON serialization
             result_state = {
@@ -564,9 +580,7 @@ def run_step():
                 'morphological_state': state.morphological_state.cpu().numpy().tolist()
             }
             
-            # Update global state
-            global current_state
-            current_state = result_state
+            logger.info(f"Processed state, voltage shape: {len(result_state['voltage_potential'])}x{len(result_state['voltage_potential'][0])}")
             
             return jsonify({
                 'success': True,
